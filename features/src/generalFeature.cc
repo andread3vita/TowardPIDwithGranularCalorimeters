@@ -6,7 +6,7 @@
 #include "TRandom.h"
 #include <TSpectrum.h>
 
-#include "utils.h"
+#include "../include/utils.h"
 #include <TCanvas.h>
 #include <TChain.h>
 #include <TFile.h>

@@ -27,7 +27,7 @@
 #include <dirent.h>
 #include <fstream>
 
-#include "utils.h" // Include custom utilities header
+#include "../include/utils.h" // Include custom utilities header
 
 using namespace std; // Use standard namespace
 

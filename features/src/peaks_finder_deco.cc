@@ -27,7 +27,7 @@
 #include <dirent.h>
 #include <fstream>
  
-#include "utils.h" // Custom utility functions or classes
+#include "../include/utils.h" // Custom utility functions or classes
 using namespace std;
 
 // Variables for tree entries and data storage
