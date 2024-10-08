@@ -1,7 +1,7 @@
 # TowardPIDwithGranularCalorimeters
 
 This study investigates whether high-granularity hadronic calorimeters can differentiate between protons, charged pions, and kaons by analyzing detailed energy deposition patterns, with promising preliminary results from Geant4 simulations
-
+![Screenshot](images/calorimeterRepresentation.png)
 ## Machine Learning Strategy
 
 Our work proposes the use of XGBoost Boosted Decision Trees (BDTs) to analyse descriptive features for each event. The approach includes a preprocessing step that generates variables for each event, which are then input into the machine learning algorithm.
