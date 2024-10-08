@@ -15,5 +15,5 @@ To study particle interactions, identifying the primary interaction vertex is cr
 # How to compile
 ```
 cd features/src
-g++ -Ofast -g <file>.cc utils.cc root-config --cflags -o <OutputName> -L$(root-config --libdir) -Wl,-rpath,$(root-config --libdir) -lCore -lRIO -lNet -lHist -lGraf -lGraf3d -lGpad -lTree -lRint -lPostscript -lMatrix -lPhysics -lMathCore -lThread -lMultiProc -lROOTVecOps -pthread -lm -ldl -lSpectrum
+g++ -Ofast -g <file>.cc utils.cc `root-config --cflags` -o <OutputName> -L$(root-config --libdir) -Wl,-rpath,$(root-config --libdir) -lCore -lRIO -lNet -lHist -lGraf -lGraf3d -lGpad -lTree -lRint -lPostscript -lMatrix -lPhysics -lMathCore -lThread -lMultiProc -lROOTVecOps -pthread -lm -ldl -lSpectrum
 ```
