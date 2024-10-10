@@ -46,7 +46,7 @@ vector<double>* Tdeltae;    // Delta energy data
 #define CLEAR_LINE "\033[K"
 
 // Parameter for peak detection, used in spectrum analysis (for identifying nearby peaks)
-int close_peaks_radius_param = 3; // 100 100 100 = 5 ; 50 50 100 = 3
+// int close_peaks_radius_param = 3; // 100 100 100 = 5 ; 50 50 100 = 3
 
 #ifdef _WIN32
     #include <direct.h>  // Windows-specific header for directory creation
@@ -65,7 +65,7 @@ int createDirectory(const std::string& path) {
 }
 
 
-std::vector<double> findPeaks_withDeco(TString filePath, int eventNum, std::vector<int> size_cell)
+std::vector<double> findPeaks_withDeco(TString filePath, int eventNum, std::vector<int> size_cell, int close_peaks_radius_param)
 {
     // Open the input ROOT file using the provided file path
     TFile* inputFile = TFile::Open(filePath); 
@@ -438,7 +438,7 @@ std::vector<double> findPeaks_withDeco(TString filePath, int eventNum, std::vect
 
 }
 
-void fillTable(std::string particleName,std::vector<int> size_cell = {100,100,100})
+void fillTable(std::string particleName,std::vector<int> size_cell = {100,100,100}, int close_peaks_radius_param = 5)
 {
 
     string outFile =  "./results_" + std::to_string(size_cell[0]) + "_" + std::to_string(size_cell[1]) + "_" + std::to_string(size_cell[2]) + "/" + particleName + ".tsv";
@@ -493,7 +493,7 @@ void fillTable(std::string particleName,std::vector<int> size_cell = {100,100,10
                     std::chrono::duration<double, std::milli> duration = end - start;
 
                     std::cout << "Processing: " << file->GetName() <<"\tEvent: " << i << "\t\ttime[min]: " << (duration.count()/1000)/60 << "\t\tProgress: " << totEv/50e3*100 << "%" << std::flush;
-                    std::vector<double> info = findPeaks_withDeco(fileName,i,size_cell);
+                    std::vector<double> info = findPeaks_withDeco(fileName,i,size_cell, close_peaks_radius_param);
 
                         
                     oFile << file->GetName() << "\t" << i << "\t" << info[13] << "\t"
@@ -517,8 +517,8 @@ void fillTable(std::string particleName,std::vector<int> size_cell = {100,100,10
 int main(int argc, char* argv[]) {
 
     // Check if the correct number of arguments is provided
-    if (argc != 5) {
-        std::cerr << "Usage: " << argv[0] << " <particle> <size_x> <size_y> <size_z>" << std::endl;
+    if (argc != 6) {
+        std::cerr << "Usage: " << argv[0] << " <particle> <size_x> <size_y> <size_z> <closePeak>" << std::endl;
         return 1;
     }
 
@@ -530,6 +530,8 @@ int main(int argc, char* argv[]) {
     int size_y = std::stoi(argv[3]);
     int size_z = std::stoi(argv[4]);
 
+    int rad = std::stoi(argv[5]);
+
     // Check if the folder exists and create it if it doesn't
     std::string folderPath = "./results_" + std::to_string(size_x) + "_" + std::to_string(size_y) + "_" + std::to_string(size_z);
     // Try to create the folder
@@ -540,6 +542,6 @@ int main(int argc, char* argv[]) {
     }
 
     // Call a function that fills the table with the given particle type
-    fillTable(particle,{size_x,size_y,size_z});
+    fillTable(particle,{size_x,size_y,size_z},rad);
 
 }

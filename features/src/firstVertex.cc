@@ -48,9 +48,11 @@ using Value = std::pair<double, double>;
 // Define DataMap as an unordered map where the key is of type Key and the value is of type Value
 using DataMap = std::unordered_map<Key, Value>;
 
-int xyWindowSize_param = 2;        // Size of the window along X and Y (2 if 100 100 100  and 1 if 50 50 100)
-int zWindowSize_param = 1;         // Size of the window along Z
-int close_vertex_radius_param = 3; // Maximum distance to consider a cell close to the primary vertex (5 if 100 100 100 and 3 if 50 50 100)
+// Parameters for the window size in x, y, and z directions
+// int xyWindowSize_param = 2;  //  2 if 100 100 100 and 1 if 50 50 100
+// int zWindowSize_param = 1;      //  1 if 100 100 100 and 1 if 50 50 100
+
+// int close_vertex_radius_param = 5; // Maximum distance to consider a cell close to the primary vertex (5 if 100 100 100 and 3 if 50 50 100)
 
 // Define macros for cursor movement and line clearing in terminal
 #define CURSOR_TO_START "\033[1G"
@@ -88,7 +90,7 @@ double distance(std::vector<int> ref, std::vector<int> pos)
     return dist;
 }
 
-std::vector<double> vertexAnalysis(TString filePath,int eventNum, std::vector<int> size_cell,double threshold)
+std::vector<double> vertexAnalysis(TString filePath,int eventNum, std::vector<int> size_cell,double threshold, int close_vertex_radius_param, int xyWindowSize_param, int zWindowSize_param)
 {
 
     // Open the input file using ROOT's TFile class
@@ -437,7 +439,7 @@ std::vector<double> vertexAnalysis(TString filePath,int eventNum, std::vector<in
     return out;
 }
 
-void fillTable(std::string particleName,std::vector<int> size_cell = {100,100,100},double threshold=150.)
+void fillTable(std::string particleName,std::vector<int> size_cell = {100,100,100},double threshold=125.,int close_vertex_radius_param = 5, int xyWindowSize_param = 2, int zWindowSize_param = 1)
 {
 
     std::string outFile = "./results_" + std::to_string(size_cell[0]) + "_" + std::to_string(size_cell[1]) + "_" + std::to_string(size_cell[2]) + "__" + std::to_string(int(threshold)) + "/" + particleName + ".tsv";
@@ -495,7 +497,7 @@ void fillTable(std::string particleName,std::vector<int> size_cell = {100,100,10
 
                     std::cout << "Processing: " << file->GetName() <<"\tEvent: " << i << "\t\ttime[min]: " << (duration.count()/1000)/60 << "\t\tProgress: " << totEv/50e3*100 << "%" << std::flush;
                     
-                    std::vector<double> info = vertexAnalysis(fileName,i,size_cell,threshold);
+                    std::vector<double> info = vertexAnalysis(fileName,i,size_cell,threshold,close_vertex_radius_param, xyWindowSize_param, zWindowSize_param);
                     oFile << file->GetName() << "\t" << i << "\t" << info[0] << "\t" << info[1] <<  "\t" << info[2] <<  "\t" << info[3] << "\t" << info[4] <<  "\t" << info[5] << "\t" << info[6] << "\t" << info[7] <<  "\t" << info[8] << "\t" << info[9] << "\t" << info[10] << std::endl;
 
                     std::cout << CURSOR_TO_START << CLEAR_LINE;
@@ -512,8 +514,8 @@ void fillTable(std::string particleName,std::vector<int> size_cell = {100,100,10
 int main(int argc, char* argv[]) {
     
     // Check if the correct number of arguments is provided
-    if (argc != 6) {
-        std::cerr << "Usage: " << argv[0] << " <particle> <size_x> <size_y> <size_z> <threshold>" << std::endl;
+    if (argc != 9) {
+        std::cerr << "Usage: " << argv[0] << " <particle> <size_x> <size_y> <size_z> <threshold> <closeVertex> <xyWindow> <zWindow>" << std::endl;
         return 1;
     }
 
@@ -528,6 +530,10 @@ int main(int argc, char* argv[]) {
     
     // Convert the fifth argument to a floating-point number (threshold)
     double threshold = std::stod(argv[5]);
+    int rad = std::stoi(argv[6]);
+
+    int xyWin = std::stoi(argv[7]);
+    int zWin = std::stoi(argv[8]);
 
     // Check if the folder exists and create it if it doesn't
     std::string folderPath = "./results_" + std::to_string(size_x) + "_" + std::to_string(size_y) + "_" + std::to_string(size_z)+"__" + std::to_string(int(threshold));
@@ -539,7 +545,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Call a function that fills the table with the given particle type
-    fillTable(particle,{size_x,size_y,size_z},threshold);
+    fillTable(particle,{size_x,size_y,size_z},threshold,rad, xyWin , zWin);
 
     return 0;
 }

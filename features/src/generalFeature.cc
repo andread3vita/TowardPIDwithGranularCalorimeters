@@ -28,8 +28,6 @@
 #include <utility>
 #include <vector>
 
-using namespace std;
-
 // Global variable to hold the number of entries in the tree
 int Tentries;
 
@@ -53,7 +51,7 @@ using DataMap = std::unordered_map<Key, Value>;
 #define CLEAR_LINE "\033[K"
 
 // Parameter for energy fraction cell radius
-int Efraction_cell_radius_param = 3; // 5 if 100 100 100 and 3 if 50 50 100
+// int Efraction_cell_radius_param = 3; // 5 if 100 100 100 and 3 if 50 50 100
 
 // OS-specific directory creation
 #ifdef _WIN32
@@ -116,7 +114,7 @@ double distance(int ref_cub, int ref_cell, int pos_cub, int pos_cell, std::vecto
     return dist; // Return the computed distance
 }
 
-std::vector<double> generalFeature(TString filePath, int eventNum,std::vector<int> size_cell)
+std::vector<double> generalFeature(TString filePath, int eventNum,std::vector<int> size_cell, int Efraction_cell_radius_param)
 {
     TFile* inputFile = TFile::Open(filePath);
     TTree* Tree = dynamic_cast<TTree*>(inputFile->Get("outputTree"));
@@ -280,7 +278,7 @@ std::vector<double> generalFeature(TString filePath, int eventNum,std::vector<in
     return out;
 }
 
-void fillTable(std::string particleName,std::vector<int> size_cell)
+void fillTable(std::string particleName,std::vector<int> size_cell, int Efraction_cell_radius_param)
 {
 
     std::string outFile = "./results_" + std::to_string(size_cell[0]) + "_" + std::to_string(size_cell[1]) + "_" + std::to_string(size_cell[2]) +"/" + particleName + ".tsv";
@@ -333,7 +331,7 @@ void fillTable(std::string particleName,std::vector<int> size_cell)
                     std::cout << "Processing: " << file->GetName() <<"\tEvent: " << i << "\t\ttime[min]: " << (duration.count()/1000)/60 << "\t\tProgress: " << totEv/50e3*100 << "%" << std::flush;
                     
 
-                    std::vector<double> info = generalFeature(fileName,i,size_cell);
+                    std::vector<double> info = generalFeature(fileName,i,size_cell, Efraction_cell_radius_param);
 
                     oFile << file->GetName() << "\t" << i << "\t" << info[0] << "\t" << info[1] <<  "\t" << info[2] <<  "\t" << info[3] << "\t" << info[4] <<  "\t" << info[5] << "\t" << info[6] << "\t" << info[7] <<  "\t" << info[8] << std::endl;
                     std::cout << CURSOR_TO_START << CLEAR_LINE;
@@ -350,8 +348,8 @@ void fillTable(std::string particleName,std::vector<int> size_cell)
 int main(int argc, char* argv[]) {
 
     // Check if the correct number of arguments is provided
-    if (argc != 5) {
-        std::cerr << "Usage: " << argv[0] << " <particle> <size_x> <size_y> <size_z>" << std::endl;
+    if (argc != 6) {
+        std::cerr << "Usage: " << argv[0] << " <particle> <size_x> <size_y> <size_z> <Efraction>" << std::endl;
         return 1;
     }
 
@@ -363,6 +361,8 @@ int main(int argc, char* argv[]) {
     int size_y = std::stoi(argv[3]);
     int size_z = std::stoi(argv[4]);
 
+    int rad = std::stoi(argv[5]);
+
     // Check if the folder exists and create it if it doesn't
     std::string folderPath = "./results_" + std::to_string(size_x) + "_" + std::to_string(size_y) + "_" + std::to_string(size_z);
     // Try to create the folder
@@ -373,6 +373,6 @@ int main(int argc, char* argv[]) {
     }
 
     // Call a function that fills the table with the given particle type
-    fillTable(particle,{size_x,size_y,size_z});
+    fillTable(particle,{size_x,size_y,size_z},rad);
 
 }
