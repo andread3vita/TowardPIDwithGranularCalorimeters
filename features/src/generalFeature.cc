@@ -6,7 +6,6 @@
 #include "TRandom.h"
 #include <TSpectrum.h>
 
-#include "../include/utils.h"
 #include <TCanvas.h>
 #include <TChain.h>
 #include <TFile.h>
@@ -28,6 +27,10 @@
 #include <utility>
 #include <vector>
 
+#include "../include/utils.h"
+
+using namespace std;
+
 // Global variable to hold the number of entries in the tree
 int Tentries;
 
@@ -40,8 +43,8 @@ vector<double> *Tpdg = nullptr;     // PDG codes
 vector<double> *Tdeltae = nullptr;  // Delta energy values
 
 // Define Key as a pair of integers and Value as a pair of doubles
-using Key = std::pair<int, int>;
-using Value = std::pair<double, double>;
+using Key = int;
+using Value = std::tuple<double, double, double>;
 
 // Define DataMap as an unordered map where the key is of type Key and the value is of type Value
 using DataMap = std::unordered_map<Key, Value>;
@@ -49,9 +52,6 @@ using DataMap = std::unordered_map<Key, Value>;
 // Define macros for cursor control in console output
 #define CURSOR_TO_START "\033[1G"
 #define CLEAR_LINE "\033[K"
-
-// Parameter for energy fraction cell radius
-// int Efraction_cell_radius_param = 3; // 5 if 100 100 100 and 3 if 50 50 100
 
 // OS-specific directory creation
 #ifdef _WIN32
@@ -71,22 +71,6 @@ int createDirectory(const std::string &path)
 #endif
 }
 
-// Hash function for std::vector<int>
-struct VectorHash
-{
-    std::size_t operator()(const std::vector<int> &vec) const
-    {
-        std::size_t hash = 0;
-        // Iterate through each integer in the vector to compute the hash
-        for (int num : vec)
-        {
-            // Combine the hash of each number with the overall hash using XOR and bit shifting
-            hash ^= std::hash<int>()(num) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
-        }
-        return hash; // Return the computed hash
-    }
-};
-
 namespace std
 {
 // Specialization of std::hash for std::pair<int, int>
@@ -102,19 +86,14 @@ template <> struct hash<std::pair<int, int>>
 } // namespace std
 
 // Function to calculate the Euclidean distance between two 3D positions
-double distance(int ref_cub, int ref_cell, int pos_cub, int pos_cell, std::vector<int> size_cell)
+double distance(std::vector<int> ref, std::vector<int> pos)
 {
-    // Convert cublet and cell indices to their 3D positions
-    std::vector<int> ref = convertPos(ref_cub, ref_cell, size_cell);
-    std::vector<int> pos = convertPos(pos_cub, pos_cell, size_cell);
-
-    // Calculate the Euclidean distance between the two positions
+    // Calculate the Euclidean distance between the reference and target points
     double dist = sqrt(pow(ref[0] - pos[0], 2) + pow(ref[1] - pos[1], 2) + pow(ref[2] - pos[2], 2));
-
-    return dist; // Return the computed distance
+    return dist;
 }
 
-std::vector<double> generalFeature(TString filePath, int eventNum,std::vector<int> size_cell, int Efraction_cell_radius_param)
+std::vector<double> generalFeature(std::string particleName, TString filePath, int eventNum,std::vector<int> size_cell, int Efraction_cell_radius_param,std::string smear)
 {
     TFile* inputFile = TFile::Open(filePath);
     TTree* Tree = dynamic_cast<TTree*>(inputFile->Get("outputTree"));
@@ -132,9 +111,8 @@ std::vector<double> generalFeature(TString filePath, int eventNum,std::vector<in
     // Define variables for storing the energy deposition data
     DataMap energyMap;  // Map to store energy and time for each cublet-cell pair
     double totalEnergy = 0.0;  // Total energy deposited in the event
-    double time0 = 10.; // first time
 
-    // Loop over each interaction in the event
+    double deltaT_TL = shift_time(particleName,2.6,smear)[0];
     for (size_t j = 0; j < Tentries; j++) 
     {
         // Get the cublet and cell indices, energy, and time for the current interaction
@@ -142,46 +120,48 @@ std::vector<double> generalFeature(TString filePath, int eventNum,std::vector<in
         int cell_idx = (*Tcell_idx)[j];
         double E = (*Tedep)[j];  // Energy deposited in the current cell
         double time = (*Ttime)[j];  // Timestamp of the current interaction
+        time = time*1000 + deltaT_TL;
 
         // Convert the cublet and cell indices to a 3D position
         std::vector<int> int_pos = convertPos(cub_idx, cell_idx, size_cell);
         
+        int index_cell = convert_to_index(cub_idx, cell_idx, size_cell);
+        
         // Create a key (cublet, cell) to store in the energy map
-        Key key = std::make_pair(cub_idx, cell_idx);
+        Key key = index_cell;
 
         // Accumulate the total energy for the event and compute time0
         totalEnergy += E;
-
-        if (time < time0)
-        {
-            time0 = time;
-        }
-
+        
         // Update the energy and time in the energy map
         if (energyMap.find(key) != energyMap.end()) {
+            
             // If the key already exists, add the energy and update the time if it's more recent
-            energyMap[key].first += E;
-            if (energyMap[key].second < time) {
-                energyMap[key].second = time;
-            }
+            std::get<0>(energyMap[key]) += E;
+            std::get<1>(energyMap[key]) += E*time;
+            std::get<2>(energyMap[key]) +=pow(E,2);
+        
+
         } else {
             // If the key does not exist, create a new entry with the current energy and time
-            energyMap[key] = std::make_pair(E, time);
+            energyMap[key] = std::make_tuple(E, E*time,pow(E,2));
         }
     }
-
+    
     ///////////////////////////////////////////////////
     ////////// FIRST AND SECOND MAX DISTANCE //////////    
     ///////////////////////////////////////////////////
 
-    // Find the maximum and second maximum value of E (energy)
     Key maxKey, secondMaxKey;  // Variables to store the keys corresponding to max and second max energy
     double maxE = -1.0, secondMaxE = -1.0;  // Initialize max and second max energies to -1
 
-    // Loop through each entry in the energyMap
     for (const auto& entry : energyMap) {
-        double E = entry.second.first;  // Retrieve the stored energy for the current entry
-
+        
+        int index = entry.first;
+        
+        int z_layer = index / (size_cell[0]*size_cell[1]);
+        
+        double E = std::get<0>(entry.second);
         // Check if the current energy is greater than the maximum energy found so far
         if (E > maxE) {
             // Before updating the maximum, update the second maximum with the previous max
@@ -191,6 +171,7 @@ std::vector<double> generalFeature(TString filePath, int eventNum,std::vector<in
             // Update the maximum energy and its corresponding key
             maxE = E;
             maxKey = entry.first;
+
         } else if (E > secondMaxE) {
             // If the current energy is not the max but greater than the second max, update second max
             secondMaxE = E;
@@ -198,61 +179,58 @@ std::vector<double> generalFeature(TString filePath, int eventNum,std::vector<in
         }
     }
 
-    double distanceFirstSecondMaxEnergy = distance(maxKey.first,maxKey.second,secondMaxKey.first,secondMaxKey.second,size_cell);
+    std::vector<int> pos_max = index_to_pos(maxKey,size_cell);
+    std::vector<int> pos_secondMax = index_to_pos(secondMaxKey,size_cell);
+
+    double distanceFirstSecondMaxEnergy = distance(pos_max,pos_secondMax);
 
     /////////////////////////////////////////////////////////////////////
     ////////// WEIGHTED TIME  + EfractionCell + numUniqueCells //////////    
     /////////////////////////////////////////////////////////////////////
 
-    // Initialize variables for calculating weighted time and energy fractions
-    double weightedTimeSum = 0.0;                                  // To hold the sum of weighted times
-    std::unordered_set<std::vector<int>, VectorHash> unique_cells; // Set to track unique cell positions
+    int unique_cells;
     double EfractionCell_num = 0.0;   // Numerator for energy fraction within a specific radius
     double EfractionCell_denom = 0.0; // Denominator for energy fraction within a distance of 1
+
+    double weightedTime = 0.0;
+    double squareEnergySum = 0.0;                                  // To hold squareEnergySum
+    double totEnergyVertex = 0.0;                                  // To hold totEnergyVertex
 
     // Iterate over each entry in the energyMap, which maps keys (cublet, cell) to energy and time values
     for (const auto &entry : energyMap)
     {
-        double E = entry.second.first;     // Energy value for the current entry
-        double time = entry.second.second; // Time value for the current entry
-        int cub_idx = entry.first.first;   // Cublet index for the current entry
-        int cell_idx = entry.first.second; // Cell index for the current entry
+        unique_cells += 1;
 
-        // Calculate the weighted time contribution (difference from a reference time, time0)
-        weightedTimeSum += E * (time - time0);
+        int index = entry.first; 
+        std::vector<int> pos = index_to_pos(entry.first,size_cell);
+        double energy = std::get<0>(entry.second); 
 
-        // Calculate the distance from the current cell to a reference cell (maxKey)
-        double dist = distance(cub_idx, cell_idx, maxKey.first, maxKey.second, size_cell);
-
-        // Check if the distance is within the specified radius for energy fraction calculation
+        double dist = distance(pos_max, pos);
         if (dist <= Efraction_cell_radius_param)
         {
-            EfractionCell_num += E; // Accumulate energy for the numerator
+
+            EfractionCell_num += energy; // Accumulate energy for the numerator
         }
         // Check if the distance is within a distance of 1 for the denominator
         if (dist <= 1)
         {
-            EfractionCell_denom += E; // Accumulate energy for the denominator
+            EfractionCell_denom += energy; // Accumulate energy for the denominator
         }
 
-        // Convert cublet and cell indices to their corresponding 3D positions
-        std::vector<int> pos = convertPos(cub_idx, cell_idx, size_cell);
+        weightedTime += std::get<1>(entry.second)/totalEnergy;
 
-        // Insert the position into the set of unique cells if it hasn't been added yet
-        if (unique_cells.find(pos) == unique_cells.end())
-        {
-            unique_cells.insert(pos); // Add the position to the set of unique cells
-        }
+        squareEnergySum += std::get<2>(entry.second);
+
     }
 
-    // Calculate the weighted average time by dividing the total weighted time by total energy
-    double weightedAverageTime = weightedTimeSum / totalEnergy;
+    if (smear == "y")
+    {   
+        double sigma_weightedTime = (sqrt(squareEnergySum)/totalEnergy)*40;
+        weightedTime = smearing_time(weightedTime,sigma_weightedTime);
+    }
 
     // Calculate the energy fraction (normalized) based on the numerator and denominator
     double EfractionCell = EfractionCell_num / EfractionCell_denom - 1.0;
-
-    // Get the number of unique cells as a double
-    double numUniqueCells = static_cast<double>(unique_cells.size());
 
     ///////////////////////////////////////////////////////
     ////////// RatioEcell + deltaEcell_secondmax //////////    
@@ -266,22 +244,26 @@ std::vector<double> generalFeature(TString filePath, int eventNum,std::vector<in
 
     std::vector<double> out(9,0);
     out[0] = totalEnergy;
-    out[1] = numUniqueCells;
+    out[1] = unique_cells;
     out[2] = maxE;
     out[3] = secondMaxE;
     out[4] = distanceFirstSecondMaxEnergy;
     out[5] = RatioEcell;
     out[6] = deltaEcell_secondmax;
     out[7] = EfractionCell;
-    out[8] = weightedAverageTime;
+    out[8] = weightedTime;
 
     return out;
 }
 
-void fillTable(std::string particleName,std::vector<int> size_cell, int Efraction_cell_radius_param)
+void fillTable( std::string particleName,
+                std::vector<int> size_cell, 
+                int Efraction_cell_radius_param,
+                std::string smear="y", 
+                std::string folderPath="")
 {
 
-    std::string outFile = "./results_" + std::to_string(size_cell[0]) + "_" + std::to_string(size_cell[1]) + "_" + std::to_string(size_cell[2]) +"/" + particleName + ".tsv";
+    std::string outFile = folderPath + "/" + particleName + ".tsv";
     std::ofstream oFile(outFile, std::ios::out);
 
     oFile << "FileName\t";
@@ -331,7 +313,7 @@ void fillTable(std::string particleName,std::vector<int> size_cell, int Efractio
                     std::cout << "Processing: " << file->GetName() <<"\tEvent: " << i << "\t\ttime[min]: " << (duration.count()/1000)/60 << "\t\tProgress: " << totEv/50e3*100 << "%" << std::flush;
                     
 
-                    std::vector<double> info = generalFeature(fileName,i,size_cell, Efraction_cell_radius_param);
+                    std::vector<double> info = generalFeature(particleName,fileName,i,size_cell, Efraction_cell_radius_param,smear);
 
                     oFile << file->GetName() << "\t" << i << "\t" << info[0] << "\t" << info[1] <<  "\t" << info[2] <<  "\t" << info[3] << "\t" << info[4] <<  "\t" << info[5] << "\t" << info[6] << "\t" << info[7] <<  "\t" << info[8] << std::endl;
                     std::cout << CURSOR_TO_START << CLEAR_LINE;
@@ -345,11 +327,18 @@ void fillTable(std::string particleName,std::vector<int> size_cell, int Efractio
     oFile.close();
 }
 
+/*
+
+Values:
+    - Efraction :       5 ( 100 100 100 ) - 3   ( 50 50 100 ) - 2 ( 25 25 100 )
+
+*/
+
 int main(int argc, char* argv[]) {
 
     // Check if the correct number of arguments is provided
-    if (argc != 6) {
-        std::cerr << "Usage: " << argv[0] << " <particle> <size_x> <size_y> <size_z> <Efraction>" << std::endl;
+    if (argc != 7) {
+        std::cerr << "Usage: " << argv[0] << " <particle> <size_x> <size_y> <size_z> <Efraction> <smearing>" << std::endl;
         return 1;
     }
 
@@ -363,8 +352,46 @@ int main(int argc, char* argv[]) {
 
     int rad = std::stoi(argv[5]);
 
+    std::string smear = argv[6];
+
+
     // Check if the folder exists and create it if it doesn't
-    std::string folderPath = "./results_" + std::to_string(size_x) + "_" + std::to_string(size_y) + "_" + std::to_string(size_z);
+    std::string folderPath = "./results/";
+    
+    // Try to create the folder
+    if (createDirectory(folderPath) == 0) {
+        std::cout << "Directory created successfully: " << folderPath << std::endl;
+    } else {
+        std::cout << "Directory already exists or couldn't be created: " << folderPath << std::endl;
+    }
+    
+    folderPath += "results_" + std::to_string(size_x) + "_" + std::to_string(size_y) + "_" + std::to_string(size_z);
+
+    // Try to create the folder
+    if (createDirectory(folderPath) == 0) {
+        std::cout << "Directory created successfully: " << folderPath << std::endl;
+    } else {
+        std::cout << "Directory already exists or couldn't be created: " << folderPath << std::endl;
+    }
+
+    folderPath += "/generalFeatures/";
+
+    // Try to create the folder
+    if (createDirectory(folderPath) == 0) {
+        std::cout << "Directory created successfully: " << folderPath << std::endl;
+    } else {
+        std::cout << "Directory already exists or couldn't be created: " << folderPath << std::endl;
+    }
+    
+    if (smear == "y")
+    {
+        folderPath += "Smearing";
+    }
+    else
+    {
+        folderPath += "noSmearing";
+    }
+
     // Try to create the folder
     if (createDirectory(folderPath) == 0) {
         std::cout << "Directory created successfully: " << folderPath << std::endl;
@@ -373,6 +400,6 @@ int main(int argc, char* argv[]) {
     }
 
     // Call a function that fills the table with the given particle type
-    fillTable(particle,{size_x,size_y,size_z},rad);
+    fillTable(particle,{size_x,size_y,size_z},rad,smear,folderPath);
 
 }

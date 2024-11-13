@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-#include "../include/utils.h" // Custom utility functions
+#include "../include/utils.h"
 using namespace std;
 
 int Tentries; // Number of entries in the event
@@ -166,11 +166,11 @@ std::vector<double> missingEnergyPlain(TString filePath, int eventNum, std::vect
     return {std::abs(asy_x), std::abs(asy_y), Asymmetry}; // Return the x, y, and total asymmetry
 }
 
-void fillTable(std::string particleName, std::vector<int> size_cell = {100, 100, 100})
+
+void fillTable(std::string particleName,std::vector<int> size_cell = {100,100,100},std::string folderPath="")
 {
 
-    string outFile = "./results_" + std::to_string(size_cell[0]) + "_" + std::to_string(size_cell[1]) + "_" +
-                     std::to_string(size_cell[2]) + "/" + particleName + ".tsv";
+    std::string outFile = folderPath + "/" + particleName + ".tsv";
     std::ofstream oFile(outFile, std::ios::out);
 
     oFile << "FileName\t";
@@ -190,78 +190,88 @@ void fillTable(std::string particleName, std::vector<int> size_cell = {100, 100,
     TList *filesList = dir.GetListOfFiles();
 
     int totEv = 0;
-    if (filesList)
-    {
+    if (filesList) {
         TSystemFile *file;
         TString fileName;
         TIter next(filesList);
 
         auto start = std::chrono::high_resolution_clock::now();
-        while ((file = (TSystemFile *)next()))
-        {
+        while ((file=(TSystemFile*)next())) {
 
-            if (!file->IsDirectory())
-            {
-
+            if (!file->IsDirectory()) {
+                
                 TString fileName = dirPath + file->GetName();
-                for (size_t i = 0; i < 1000; i++)
+                for (size_t i=0; i<1000;i++)
                 {
-
+                    
                     totEv += 1;
 
                     auto end = std::chrono::high_resolution_clock::now();
                     std::chrono::duration<double, std::milli> duration = end - start;
 
-                    std::cout << "Processing: " << file->GetName() << "\tEvent: " << i
-                              << "\t\ttime[min]: " << (duration.count() / 1000) / 60
-                              << "\t\tProgress: " << totEv / 50e3 * 100 << "%" << std::flush;
+                    std::cout << "Processing: " << file->GetName() <<"\tEvent: " << i << "\t\ttime[min]: " << (duration.count()/1000)/60 << "\t\tProgress: " << totEv/50e3*100 << "%" << std::flush;
+                    
+                    std::vector<double> info = missingEnergy(fileName,i,size_cell);
+                    std::vector<double> info_plain = missingEnergyPlain(fileName,i,size_cell);
 
-                    std::vector<double> info = missingEnergy(fileName, i, size_cell);
-                    std::vector<double> info_plain = missingEnergyPlain(fileName, i, size_cell);
-
-                    oFile << file->GetName() << "\t" << i << "\t" << info[0] << "\t" << info[1] << "\t" << info[2]
-                          << "\t" << info_plain[0] << "\t" << info_plain[1] << "\t" << info_plain[2] << std::endl;
+                    oFile << file->GetName() << "\t" << i << "\t" << info[0] << "\t" << info[1] <<  "\t" << info[2] <<  "\t" << info_plain[0] << "\t" << info_plain[1] << "\t" << info_plain[2] << std::endl;
 
                     std::cout << CURSOR_TO_START << CLEAR_LINE;
+                                
                 }
+
             }
-        }
+        }                   
     }
 
     oFile.close();
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char* argv[]) {
 
     // Check if the correct number of arguments is provided
-    if (argc != 5)
-    {
+    if (argc != 5) {
         std::cerr << "Usage: " << argv[0] << " <particle> <size_x> <size_y> <size_z>" << std::endl;
         return 1;
     }
 
     // Retrieve and store the particle type from the first argument
     std::string particle = argv[1];
-
+    
     // Convert the second, third, and fourth arguments to integers for the grid size
     int size_x = std::stoi(argv[2]);
     int size_y = std::stoi(argv[3]);
     int size_z = std::stoi(argv[4]);
 
     // Check if the folder exists and create it if it doesn't
-    std::string folderPath =
-        "./results_" + std::to_string(size_x) + "_" + std::to_string(size_y) + "_" + std::to_string(size_z);
+    std::string folderPath = "./results/";
+    
     // Try to create the folder
-    if (createDirectory(folderPath) == 0)
-    {
+    if (createDirectory(folderPath) == 0) {
         std::cout << "Directory created successfully: " << folderPath << std::endl;
+    } else {
+        std::cout << "Directory already exists or couldn't be created: " << folderPath << std::endl;
     }
-    else
-    {
+    
+    folderPath += "results_" + std::to_string(size_x) + "_" + std::to_string(size_y) + "_" + std::to_string(size_z);
+
+    // Try to create the folder
+    if (createDirectory(folderPath) == 0) {
+        std::cout << "Directory created successfully: " << folderPath << std::endl;
+    } else {
+        std::cout << "Directory already exists or couldn't be created: " << folderPath << std::endl;
+    }
+
+    folderPath += "/missingEnergy";
+
+    // Try to create the folder
+    if (createDirectory(folderPath) == 0) {
+        std::cout << "Directory created successfully: " << folderPath << std::endl;
+    } else {
         std::cout << "Directory already exists or couldn't be created: " << folderPath << std::endl;
     }
 
     // Call a function that fills the table with the given particle type
-    fillTable(particle, {size_x, size_y, size_z});
+    fillTable(particle,{size_x,size_y,size_z},folderPath);
+
 }
