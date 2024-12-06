@@ -22,6 +22,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.interpolate import interp1d
 
+# Libraries for statistical analysis
+from scipy.stats import beta
+
 # Set a random seed for reproducibility
 seed = 42
 
@@ -319,6 +322,20 @@ def optimal_matrix(y_test, y_pred_prob,y_pred_binary):
 cm_standard = confusion_matrix(y_test, y_pred_binary, labels=[0, 1])
 acc_standard = accuracy_score(y_pred_binary,y_test)
 
+# CLOPPER-PEARSON INTERVAL
+
+#acc = (n_tn + n_tp)/n = n_t / n
+    # n_tn = cm[0,0]
+    # m_tp = cm[1,1]
+    # n = np.sum(cm)
+
+alpha = 0.32
+n_t = cm_standard[0,0] + cm_standard[1,1]
+n = np.sum(cm_standard)
+
+lower_bound = beta.ppf(alpha / 2, n_t, n - n_t + 1)
+upper_bound = beta.ppf(1 - alpha / 2, n_t + 1, n - n_t)
+
 cm_acc, thr_acc, acc_withNC, acc_array, eff_array = optimal_matrix(y_test, y_pred_proba,y_pred_binary)
 
 pred_labels_standard = ['0', '1'] 
@@ -343,7 +360,7 @@ sns.heatmap(
     ax=axes[0],
     **heatmap_kwargs
 )
-axes[0].set_title(f"Standard Confusion Matrix\nAccuracy: {acc_standard:.3f}", fontsize=18)
+axes[0].set_title(f"Standard Confusion Matrix\nAccuracy: {acc_standard:.3f}, 68% CI [{lower_bound:.3f}, {upper_bound:.3f}]", fontsize=18)
 axes[0].set_xlabel("Predicted", fontsize=14)
 axes[0].set_ylabel("True", fontsize=14)
 sns.heatmap(
