@@ -27,9 +27,9 @@
 #include <dirent.h>
 #include <fstream>
 
-#include "../include/utils.h" // Include custom utilities header
+#include "../include/utils.h"
 
-using namespace std; // Use standard namespace
+using namespace std;
 
 // Global variables for data entries
 int Tentries;
@@ -105,9 +105,9 @@ std::vector<double> SpatialObservables(TString filePath, int eventNum, std::vect
     }
 
     // Calculate mean positions weighted by energy
-    vector<double> x_mean = computeMean(x_pos, ENERGY, 1);
-    vector<double> y_mean = computeMean(y_pos, ENERGY, 1);
-    vector<double> z_mean = computeMean(z_pos, ENERGY, 1.);
+    vector<double> x_mean = computeMeanFullStats(x_pos, ENERGY, 1);
+    vector<double> y_mean = computeMeanFullStats(y_pos, ENERGY, 1);
+    vector<double> z_mean = computeMeanFullStats(z_pos, ENERGY, 1.);
 
     // Calculate radial distributions
     vector<double> rad = computeRadius(x_pos, y_pos, ENERGY, x_mean[0], y_mean[0], true);
@@ -125,10 +125,10 @@ std::vector<double> SpatialObservables(TString filePath, int eventNum, std::vect
     return {rad[0], rad[1], z_long[0], z_long[1], rad_plain[0], rad_plain[1], z_long_plain[0], z_long_plain[1]};
 }
 
-void fillTable(std::string particleName,std::vector<int> size_cell = {100,100,100})
+void fillTable(std::string particleName,std::vector<int> size_cell = {100,100,100},std::string folderPath="")
 {
 
-    string outFile =  "./results_" + std::to_string(size_cell[0]) + "_" + std::to_string(size_cell[1]) + "_" + std::to_string(size_cell[2]) + "/" + particleName + ".tsv";
+    std::string outFile = folderPath + "/" + particleName + ".tsv";
     std::ofstream oFile(outFile, std::ios::out);
 
     oFile << "FileName\t";
@@ -210,7 +210,26 @@ int main(int argc, char* argv[]) {
     int size_z = std::stoi(argv[4]);
 
     // Check if the folder exists and create it if it doesn't
-    std::string folderPath = "./results_" + std::to_string(size_x) + "_" + std::to_string(size_y) + "_" + std::to_string(size_z);
+    std::string folderPath = "./results/";
+    
+    // Try to create the folder
+    if (createDirectory(folderPath) == 0) {
+        std::cout << "Directory created successfully: " << folderPath << std::endl;
+    } else {
+        std::cout << "Directory already exists or couldn't be created: " << folderPath << std::endl;
+    }
+    
+    folderPath += "results_" + std::to_string(size_x) + "_" + std::to_string(size_y) + "_" + std::to_string(size_z);
+
+    // Try to create the folder
+    if (createDirectory(folderPath) == 0) {
+        std::cout << "Directory created successfully: " << folderPath << std::endl;
+    } else {
+        std::cout << "Directory already exists or couldn't be created: " << folderPath << std::endl;
+    }
+
+    folderPath += "/spatialObservables";
+
     // Try to create the folder
     if (createDirectory(folderPath) == 0) {
         std::cout << "Directory created successfully: " << folderPath << std::endl;
@@ -219,6 +238,6 @@ int main(int argc, char* argv[]) {
     }
 
     // Call a function that fills the table with the given particle type
-    fillTable(particle,{size_x,size_y,size_z});
+    fillTable(particle,{size_x,size_y,size_z},folderPath);
 
 }

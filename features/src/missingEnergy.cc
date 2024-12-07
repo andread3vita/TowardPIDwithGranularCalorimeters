@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-#include "../include/utils.h" // Custom utility functions
+#include "../include/utils.h"
 using namespace std;
 
 int Tentries; // Number of entries in the event
@@ -167,11 +167,10 @@ std::vector<double> missingEnergyPlain(TString filePath, int eventNum, std::vect
 }
 
 
-
-void fillTable(std::string particleName,std::vector<int> size_cell = {100,100,100})
+void fillTable(std::string particleName,std::vector<int> size_cell = {100,100,100},std::string folderPath="")
 {
 
-    string outFile =  "./results_" + std::to_string(size_cell[0]) + "_" + std::to_string(size_cell[1]) + "_" + std::to_string(size_cell[2]) + "/" + particleName + ".tsv";
+    std::string outFile = folderPath + "/" + particleName + ".tsv";
     std::ofstream oFile(outFile, std::ios::out);
 
     oFile << "FileName\t";
@@ -245,7 +244,26 @@ int main(int argc, char* argv[]) {
     int size_z = std::stoi(argv[4]);
 
     // Check if the folder exists and create it if it doesn't
-    std::string folderPath = "./results_" + std::to_string(size_x) + "_" + std::to_string(size_y) + "_" + std::to_string(size_z);
+    std::string folderPath = "./results/";
+    
+    // Try to create the folder
+    if (createDirectory(folderPath) == 0) {
+        std::cout << "Directory created successfully: " << folderPath << std::endl;
+    } else {
+        std::cout << "Directory already exists or couldn't be created: " << folderPath << std::endl;
+    }
+    
+    folderPath += "results_" + std::to_string(size_x) + "_" + std::to_string(size_y) + "_" + std::to_string(size_z);
+
+    // Try to create the folder
+    if (createDirectory(folderPath) == 0) {
+        std::cout << "Directory created successfully: " << folderPath << std::endl;
+    } else {
+        std::cout << "Directory already exists or couldn't be created: " << folderPath << std::endl;
+    }
+
+    folderPath += "/missingEnergy";
+
     // Try to create the folder
     if (createDirectory(folderPath) == 0) {
         std::cout << "Directory created successfully: " << folderPath << std::endl;
@@ -254,6 +272,6 @@ int main(int argc, char* argv[]) {
     }
 
     // Call a function that fills the table with the given particle type
-    fillTable(particle,{size_x,size_y,size_z});
+    fillTable(particle,{size_x,size_y,size_z},folderPath);
 
 }
