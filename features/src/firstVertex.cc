@@ -52,6 +52,7 @@ using DataMap = std::unordered_map<Key, Value>;
 #define CURSOR_TO_START "\033[1G"
 #define CLEAR_LINE "\033[K"
 
+double DELTA_SMEARING = 40.;
 // Directory creation function for both Windows and POSIX-compliant systems
 int createDirectory(const std::string &path)
 {
@@ -289,7 +290,7 @@ std::vector<double> vertexAnalysis( std::string particleName,
     
     if (smear == "y")
     {   
-        double sigma_verteTime = (sqrt(squareEnergySum)/totEnergyVertex)*40;
+        double sigma_verteTime = (sqrt(squareEnergySum)/totEnergyVertex)*DELTA_SMEARING;
         VertexTime = smearing_time(VertexTime,sigma_verteTime);
     }
    
@@ -330,7 +331,7 @@ std::vector<double> vertexAnalysis( std::string particleName,
 
     if (smear == "y")
     {   
-        time50 = smearing_time(time50,40.);
+        time50 = smearing_time(time50,DELTA_SMEARING);
     }
 
     ////////////////////////////////////////////////////////
@@ -503,10 +504,10 @@ void fillTable( std::string particleName,
 /*
 
 Values:
-    - threshold :       125 ( 100 100 100 ) - 125   ( 50 50 100 ) - 200 ( 25 25 100 )
-    - closeVertex :     5   ( 100 100 100 ) - 3     ( 50 50 100 ) - 2   ( 25 25 100 )
-    - xyWindow :        2   ( 100 100 100 ) - 1     ( 50 50 100 ) - 1   ( 25 25 100 )
-    - zWindow :         1   ( 100 100 100 ) - 1     ( 50 50 100 ) - 1   ( 25 25 100 )
+    - threshold :       125 ( 100 100 100 ) - 125   ( 50 50 100 ) - 200 ( 25 25 100 ) - 175  ( 100 100 50 ) - 250 ( 100 100 25 ) - 250 ( 10 10 100 ) - 350 ( 100 100 10 )
+    - closeVertex :     5   ( 100 100 100 ) - 3     ( 50 50 100 ) - 2   ( 25 25 100 ) - 3   ( 100 100 50 ) - 2  ( 100 100 25 )   - 2 ( 10 10 100 ) - 2 ( 100 100 10 )
+    - xyWindow :        2   ( 100 100 100 ) - 1     ( 50 50 100 ) - 1   ( 25 25 100 ) - 2   ( 100 100 50 ) - 2  ( 100 100 25 )   - 1 ( 10 10 100 ) - 2 ( 100 100 10 )
+    - zWindow :         1   ( 100 100 100 ) - 1     ( 50 50 100 ) - 1   ( 25 25 100 ) - 1   ( 100 100 50 ) - 1  ( 100 100 25 )   - 1 ( 10 10 100 ) - 1 ( 100 100 10 )
 
 */
 
