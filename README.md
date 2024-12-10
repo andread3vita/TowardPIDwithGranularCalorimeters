@@ -12,9 +12,9 @@ Hyperparameter optimization is conducted using GridSearch, exploring different c
 To study particle interactions, identifying the primary interaction vertex is crucial, as it reveals key information about the particle. Detector segmentation, particularly longitudinal, enables detailed analysis of the shower's energy profile. A moving window algorithm helps locate the primary vertex near an energy peak. Further studies can focus on the energy around the vertex, its relationship to secondary vertices, and shower dimensions, including average size and asymmetries from non-interacting secondary particles.
 
 
-# How to compile
+# Instructions
 
-## Prerequsites
+## Prerequisites
 For the pipeline:
 * root
 * nohup
