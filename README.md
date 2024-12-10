@@ -17,7 +17,7 @@ To study particle interactions, identifying the primary interaction vertex is cr
 ## Prerequsites
 For the pipeline:
 * root
-* nuhup
+* nohup
 
 ## Arguments manager
 ```
