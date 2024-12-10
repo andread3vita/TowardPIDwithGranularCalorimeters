@@ -13,7 +13,32 @@ To study particle interactions, identifying the primary interaction vertex is cr
 
 
 # How to compile
+
+## Prerequsites
+For the pipeline:
+* root
+* nuhup
+
+## Arguments manager
 ```
-cd features/src
-g++ -Ofast -g <file>.cc utils.cc `root-config --cflags` -o <OutputName> -L$(root-config --libdir) -Wl,-rpath,$(root-config --libdir) -lCore -lRIO -lNet -lHist -lGraf -lGraf3d -lGpad -lTree -lRint -lPostscript -lMatrix -lPhysics -lMathCore -lThread -lMultiProc -lROOTVecOps -pthread -lm -ldl -lSpectrum
+cd features
+g++ -std=c++11 -o args_manager src/fileManager.cc 
+```
+
+## Features analysis
+```
+g++ -Ofast -g src/<file>.cc utils.cc `root-config --cflags` -o <file> -L$(root-config --libdir) -Wl,-rpath,$(root-config --libdir) -lCore -lRIO -lNet -lHist -lGraf -lGraf3d -lGpad -lTree -lRint -lPostscript -lMatrix -lPhysics -lMathCore -lThread -lMultiProc -lROOTVecOps -pthread -lm -ldl -lSpectrum
+```
+
+# How to use args_manager
+```
+[user@mycomputer features]$ ./args_manager 
+Enter the name of the executable: <executableName>
+Enter the segmentation to update (format x_y_z): <x_y_z>
+Enter the values to associate with the segmentation (separated by space): <a b c d>
+```
+# How to use the pipeline
+```
+[user@mycomputer features]$ ./execPipeline.sh
+Enter the segmentation (format x_y_z): <x_y_z>
 ```
