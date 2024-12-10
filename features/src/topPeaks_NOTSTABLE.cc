@@ -64,82 +64,97 @@ int createDirectory(const std::string& path) {
 
 std::vector<double> findPeaks_withDeco(TString filePath, int eventNum, std::vector<int> size_cell, int close_peaks_radius_param)
 {
-    // Controlla che size_cell abbia almeno 3 elementi
-    if (size_cell.size() < 3) {
-        std::cerr << "Errore: size_cell deve contenere almeno 3 elementi." << std::endl;
-        return {-1};
-    }
+    // Open the input ROOT file using the provided file path
+    TFile* inputFile = TFile::Open(filePath); 
 
-    // Apri il file ROOT
-    TFile* inputFile = TFile::Open(filePath);
-    if (!inputFile || inputFile->IsZombie()) {
-        std::cerr << "Errore: impossibile aprire il file " << filePath << std::endl;
-        return {-1};
-    }
-
-    // Ottieni l'albero
+    // Get the "outputTree" from the file and cast it to a TTree object
     TTree* Tree = dynamic_cast<TTree*>(inputFile->Get("outputTree"));
-    if (!Tree) {
-        std::cerr << "Errore: impossibile trovare 'outputTree'." << std::endl;
-        inputFile->Close();
-        delete inputFile;
-        return {-1};
-    }
 
-    // Imposta i branch
-    Tree->SetBranchAddress("Tinteractions_in_event", &Tentries);
-    Tree->SetBranchAddress("Tcublet_idx", &Tcublet_idx);
-    Tree->SetBranchAddress("Tcell_idx", &Tcell_idx);
-    Tree->SetBranchAddress("Tedep", &Tedep);
+    // Set branch addresses to point to the variables that will hold the tree data
+    Tree->SetBranchAddress("Tinteractions_in_event", &Tentries);  // Number of interactions in the event
+    Tree->SetBranchAddress("Tcublet_idx", &Tcublet_idx);          // Cublet indices for each interaction
+    Tree->SetBranchAddress("Tcell_idx", &Tcell_idx);              // Cell indices for each interaction
+    Tree->SetBranchAddress("Tedep", &Tedep);                      // Energy deposition for each interaction
 
-    // Crea istogrammi
-    TH2D hist_cell_zy("zy", "", size_cell[2], 0, size_cell[2], size_cell[1], 0, size_cell[1]);
-    TH2D hist_cell_zx("zx", "", size_cell[2], 0, size_cell[2], size_cell[0], 0, size_cell[0]);
+    // Create 2D histograms for energy deposition in ZY and ZX planes
+    TH2D *hist_cell_zy = new TH2D("zy", "", size_cell[2], 0, size_cell[2], size_cell[1], 0, size_cell[1]);
+    TH2D *hist_cell_zx = new TH2D("zx", "", size_cell[2], 0, size_cell[2], size_cell[0], 0, size_cell[0]);
 
-    // Carica l'evento specificato
+    // Load the specified event (eventNum) from the tree
     Tree->GetEntry(eventNum);
 
-    // Loop sugli eventi
+    // Loop through all interactions within the event
     for (size_t j = 0; j < Tentries; j++) 
     {
+        // Retrieve the cublet and cell indices for the current interaction
         int cub_idx = (*Tcublet_idx)[j];
         int cell_idx = (*Tcell_idx)[j];
-        double E = (*Tedep)[j];
+        
+        // Retrieve the energy deposited in this interaction
+        double E = (*Tedep)[j]; 
 
+        // Convert the cublet and cell indices to 3D position coordinates
         std::vector<int> int_pos = convertPos(cub_idx, cell_idx, size_cell);
 
-        hist_cell_zy.Fill(int_pos[2], int_pos[1], E);
-        hist_cell_zx.Fill(int_pos[2], int_pos[0], E);
+        // Fill the 2D histograms with energy deposition data for ZY and ZX planes
+        hist_cell_zy->Fill(int_pos[2], int_pos[1], E);  // Fill histogram for ZY plane
+        hist_cell_zx->Fill(int_pos[2], int_pos[0], E);  // Fill histogram for ZX plane
     }
 
-    // Proiezione sull'asse Z
-    TH1D* projZ = hist_cell_zy.ProjectionX("projZ");
-    int nBins = projZ->GetNbinsX();
+    // Parameters for spectrum analysis (used for detecting peaks in the Z axis projection)
+    const Int_t nbins = size_cell[2];   // Number of bins based on Z-axis size
+    Double_t xmin = 0;                  // Minimum value of the histogram range
+    Double_t xmax = nbins;              // Maximum value of the histogram range
+    Double_t source[nbins], dest[nbins]; // Arrays to store histogram contents
 
-    // Ricerca dei picchi
-    TSpectrum spectrum;
-    Int_t nfoundZ = spectrum.Search(projZ, 2, "nobackground nodraw", 0.1);
+    // Create a 1D projection of the ZY histogram onto the Z axis (collapsing Y)
+    TH1D *projZ = hist_cell_zy->ProjectionX("projZ");
+    for (int i = 0; i < nbins; i++) 
+        source[i] = projZ->GetBinContent(i + 1);  // Copy bin content to the source array
 
-    // Estrazione dei picchi
-    std::vector<double> peaksZ;
-    Double_t* xpeaksZ = spectrum.GetPositionX();
-    peaksZ.assign(xpeaksZ, xpeaksZ + nfoundZ);
+    int res = size_cell[2];  // Resolution parameter for peak detection
 
-    // Ordina il vettore in ordine crescente
-    std::sort(peaksZ.begin(), peaksZ.end());
+    // Perform high-resolution peak search using TSpectrum class
+    TSpectrum *spectrumZ = new TSpectrum(20, res);  // Initialize spectrum with up to 20 peaks
 
-    // Pulizia
+    // Set parameters for Gaussian smoothing and deconvolution
+    double sigma = (size_cell[2] / 20 > 1) ? size_cell[2] / 20 : 1;  // Standard deviation for smoothing
+    int ndeconv = 10;                  // Number of deconvolution iterations
+    int window = 2;                    // Window size for peak search
+    double threshold = 1.5;            // Threshold for peak detection
+
+    // Perform deconvolution of the source data and store the result in the dest array
+    int nfoundZ = spectrumZ->SearchHighRes(source, dest, nbins, sigma, threshold, kFALSE, ndeconv, kFALSE, window);
+
+    // Update the projection histogram with the deconvolved data
+    for (int i = 0; i < nbins; i++) 
+        projZ->SetBinContent(i + 1, dest[i]);
+
+    // Perform the final peak search on the deconvolved histogram
+    nfoundZ = spectrumZ->Search(projZ, 3, "nodraw", 0.06);
+
+    // Retrieve the positions of the detected peaks along the Z axis
+    Double_t* xpeaksZ = spectrumZ->GetPositionX();
+
+    // Store the peak positions in a vector and return it
+    std::vector<double> peaksZ(xpeaksZ, xpeaksZ + nfoundZ);
+
+    // Clean up dynamically allocated memory
     delete projZ;
-    
-    double E1;
-    double R1;
-    if (nfoundZ > 0) {
+    delete spectrumZ;
+
+    // Initialize output vector with a size of 14, filled with -1 values
+    std::vector<double> out_vector(14, -1.);
+    if (nfoundZ > 0) 
+    {
+        // Sort detected Z peaks
+        std::sort(peaksZ.begin(), peaksZ.end());
 
         // Get number of bins for X and Y axis projections from the histograms
-        int nBinsX_y = hist_cell_zy.GetNbinsX();
-        int nBinsY_y = hist_cell_zy.GetNbinsY();
-        int nBinsX_x = hist_cell_zx.GetNbinsX();
-        int nBinsY_x = hist_cell_zx.GetNbinsY();
+        int nBinsX_y = hist_cell_zy->GetNbinsX();
+        int nBinsY_y = hist_cell_zy->GetNbinsY();
+        int nBinsX_x = hist_cell_zx->GetNbinsX();
+        int nBinsY_x = hist_cell_zx->GetNbinsY();
 
         // Create arrays of histograms to store projections of each peak
         size_t num_peaks = nfoundZ;
@@ -166,15 +181,15 @@ std::vector<double> findPeaks_withDeco(TString filePath, int eventNum, std::vect
             // Filter the ZX plane histogram for values around the current Z peak
             TH2D* h2d_filtered_x = new TH2D("FILTER_X", "", size_cell[2], 0, size_cell[2], size_cell[0], 0, size_cell[0]);
             for (int i = 1; i <= nBinsX_x; ++i) {
-                double x = hist_cell_zx.GetXaxis()->GetBinCenter(i);
+                double x = hist_cell_zx->GetXaxis()->GetBinCenter(i);
 
                 // Select bins within the threshold range
                 if (x > peak_pos - 2 && x < peak_pos + 2) {
                     for (int j = 1; j <= nBinsY_x; ++j) {
-                        double content = hist_cell_zx.GetBinContent(i, j);
+                        double content = hist_cell_zx->GetBinContent(i, j);
                         h2d_filtered_x->SetBinContent(i, j, content);
 
-                        double error = hist_cell_zx.GetBinError(i, j);
+                        double error = hist_cell_zx->GetBinError(i, j);
                         h2d_filtered_x->SetBinError(i, j, error);
                     }
                 }
@@ -186,12 +201,22 @@ std::vector<double> findPeaks_withDeco(TString filePath, int eventNum, std::vect
             std::string hist_name_x = "proj_x_" + std::to_string(s);
             projX[s] = h2d_filtered_x->ProjectionY(hist_name_x.c_str());
 
-            TSpectrum *spectrumX = new TSpectrum();
+            int nbins_x = size_cell[0];
+            Double_t source_x[nbins_x], dest_x[nbins_x];
+            // Perform peak search on the projection
+            for (int i = 0; i < nbins_x; i++) source_x[i] = projX[s]->GetBinContent(i + 1);
 
-            double x_sm = 3;
+            TSpectrum *spectrumX = new TSpectrum(20, res);
+
+            double sigma_x = (size_cell[0] / 20 > 1) ? size_cell[0] / 20 : 1;
+            Int_t nfoundX = spectrumX->SearchHighRes(source_x, dest_x, nbins_x, sigma_x, threshold, kFALSE, ndeconv, kFALSE, window);
+            for (int i = 0; i < nbins_x; i++) projX[s]->SetBinContent(i + 1, dest_x[i]);
+
             double x_thr = 0.1;
-            Int_t nfoundX = spectrumX->Search(projX[s], x_sm, "nodraw nobackground", x_thr);
+            int x_sm = 3;
+            nfoundX = spectrumX->Search(projX[s], x_sm, "nodraw nobackground", x_thr);
 
+            
             // Adjust search parameters if no peaks found
             int iter = 0;
             while (!nfoundX) {
@@ -205,8 +230,9 @@ std::vector<double> findPeaks_withDeco(TString filePath, int eventNum, std::vect
                 nfoundX = spectrumX->Search(projX[s], x_sm, "nodraw nobackground", x_thr);
                 iter += 1;
 
-                if (iter > 5)
+                if (iter == 5)
                 {   
+                    for (int i = 0; i < nbins_x; i++) projX[s]->SetBinContent(i + 1, source_x[i]);
 
                     x_thr = 0.1;
                     x_sm = 1;
@@ -238,15 +264,15 @@ std::vector<double> findPeaks_withDeco(TString filePath, int eventNum, std::vect
             // Filter the ZY plane histogram for values around the current Z peak
             TH2D* h2d_filtered_y = new TH2D("FILTER_Y", "", size_cell[2], 0, size_cell[2], size_cell[1], 0, size_cell[1]);
             for (int i = 1; i <= nBinsX_y; ++i) {
-                double x = hist_cell_zy.GetXaxis()->GetBinCenter(i);
+                double x = hist_cell_zy->GetXaxis()->GetBinCenter(i);
 
                 // Select bins within the threshold range
-                if (x > peak_pos - 2 && x < peak_pos + 2) {
+                if (x > threshold - 2 && x < threshold + 2) {
                     for (int j = 1; j <= nBinsY_y; ++j) {
-                        double content = hist_cell_zy.GetBinContent(i, j);
+                        double content = hist_cell_zy->GetBinContent(i, j);
                         h2d_filtered_y->SetBinContent(i, j, content);
 
-                        double error = hist_cell_zy.GetBinError(i, j);
+                        double error = hist_cell_zy->GetBinError(i, j);
                         h2d_filtered_y->SetBinError(i, j, error);
                     }
                 }
@@ -256,12 +282,20 @@ std::vector<double> findPeaks_withDeco(TString filePath, int eventNum, std::vect
             std::string hist_name_y = "proj_y_" + std::to_string(s);
             projY[s] = h2d_filtered_y->ProjectionY(hist_name_y.c_str());
 
-            TSpectrum *spectrumY = new TSpectrum();
+            int nbins_y = size_cell[1];
+            Double_t source_y[nbins_y], dest_y[nbins_y];
+            // Perform peak search on the Y projection
+            for (int i = 0; i < nbins_y; i++) source_y[i] = projY[s]->GetBinContent(i + 1);
+            TSpectrum *spectrumY = new TSpectrum(20, res);
+
+            double sigma_y = (size_cell[1] / 20 > 1) ? size_cell[1] / 20 : 1;
+            int nfoundY = spectrumY->SearchHighRes(source_y, dest_y, nbins_y, sigma_y, threshold, kFALSE, ndeconv, kFALSE, window);
+            for (int i = 0; i < nbins_y; i++) projY[s]->SetBinContent(i + 1, dest_y[i]);
 
             // Adjust search parameters if no peaks found
             double y_thr = 0.1;
             int y_sm = 3;
-            Int_t nfoundY = spectrumY->Search(projY[s], y_sm, "nodraw nobackground", y_thr);
+            nfoundY = spectrumY->Search(projY[s], y_sm, "nodraw nobackground", y_thr);
 
             iter = 0;
             while (!nfoundY) {
@@ -276,7 +310,8 @@ std::vector<double> findPeaks_withDeco(TString filePath, int eventNum, std::vect
                 iter += 1;
 
                 if (iter > 5)
-                {  
+                {   
+                    for (int i = 0; i < nbins_y; i++) projY[s]->SetBinContent(i + 1, source_y[i]);
 
                     y_thr = 0.1;
                     y_sm = 1;
@@ -304,7 +339,7 @@ std::vector<double> findPeaks_withDeco(TString filePath, int eventNum, std::vect
             }
 
             // Store the detected peaks (X, Y, Z) in the output vector
-            out_peaks.push_back({peak_x, peak_y, peak_pos});
+            out_peaks.push_back({peak_x, peak_y, threshold});
         
             // Clean up memory for current peak
             delete spectrumX;
@@ -340,10 +375,19 @@ std::vector<double> findPeaks_withDeco(TString filePath, int eventNum, std::vect
             for (auto el : isClose) {
                 energy_aroundPeaks[el] += E;
             }
-        }   
+        }
 
         // Sort peaks by energy
         std::vector<int> energy_index = topEnergy_index(energy_aroundPeaks);
+
+        // Store sorted peaks and corresponding energy values
+        std::vector<std::vector<double>> sorted_peaks;
+        for (size_t g = 0; g < nfoundZ; g++) {
+            sorted_peaks.push_back(out_peaks[energy_index[g]]);
+        }
+
+        // Calculate distances and angles between peaks
+        std::vector<std::vector<double>> d_and_angle = calculate_distance_and_angle(sorted_peaks);
 
         // Store sorted energies and energy ratios
         std::vector<double> sorted_energies;
@@ -353,28 +397,54 @@ std::vector<double> findPeaks_withDeco(TString filePath, int eventNum, std::vect
             sorted_ratios.push_back(energy_aroundPeaks[energy_index[g]] / totEn);
         }
 
+        // Populate the out_vector with the results
+        if(nfoundZ>2)
+        {
+
+            for(size_t k =0; k<3;k++)
+            {
+                out_vector[0+4*k] = sorted_energies[k];
+                out_vector[1+4*k] = d_and_angle[k][1];
+                out_vector[2+4*k] = d_and_angle[k][0];
+                out_vector[3+4*k] = sorted_ratios[k];
+
+            } 
+
+            std::vector<std::vector<double>> topThreeVertices = {sorted_peaks[0],sorted_peaks[1],sorted_peaks[2]};
+            double aplanarity = angleBetweenLineAndPlane(topThreeVertices);
+            out_vector[12] = aplanarity;
+            out_vector[13] = nfoundZ;
+        }
+        else
+        {   
+
+            for(size_t k =0; k<nfoundZ;k++)
+            {
+                out_vector[0+4*k] = sorted_energies[k];
+                out_vector[1+4*k] = d_and_angle[k][1];
+                out_vector[2+4*k] = d_and_angle[k][0];
+                out_vector[3+4*k] = sorted_ratios[k];
+
+            } 
+
+            out_vector[12] = -1.; // Aplanarity is undefined for fewer than 3 peaks
+            out_vector[13] = nfoundZ;
+
+        }
+
         for (size_t i = 0; i < num_peaks; i++) {
             if (projY[i]) delete projY[i];
             if (projX[i]) delete projX[i];
         }
 
-        E1 = sorted_energies[0];
-        R1 = sorted_ratios[0];
-        
     }
 
-
-    
-    
     inputFile->Close();
-    delete inputFile;  
+    delete inputFile;
 
-    double numPeaks = nfoundZ;
-    //E1
-    //R1
-    return {numPeaks,E1,R1};
+    return out_vector;
+
 }
-
 
 void fillTable(std::string particleName,std::vector<int> size_cell = {100,100,100}, int close_peaks_radius_param = 5,std::string folderPath="")
 {
@@ -384,11 +454,22 @@ void fillTable(std::string particleName,std::vector<int> size_cell = {100,100,10
 
     oFile << "FileName\t";
     oFile << "EventNum\t";
+    oFile << "NumPeaks\t";
 
-    oFile << "numPeaks\t";
     oFile << "E1\t";
     oFile << "R1\t";
 
+    oFile << "E2\t";
+    oFile << "theta2\t";
+    oFile << "d2\t";
+    oFile << "R2\t";
+
+    oFile << "E3\t";
+    oFile << "theta3\t";
+    oFile << "d3\t";
+    oFile << "R3\t";
+    
+    oFile << "Aplanarity";
 
     oFile << std::endl;
 
@@ -423,7 +504,11 @@ void fillTable(std::string particleName,std::vector<int> size_cell = {100,100,10
                     std::vector<double> info = findPeaks_withDeco(fileName,i,size_cell, close_peaks_radius_param);
 
                             
-                    oFile << file->GetName() << "\t" << i << "\t" << info[0] << "\t" << info[1] << "\t" << info[2] << std::endl;
+                    oFile << file->GetName() << "\t" << i << "\t" << info[13] << "\t"
+                                    << info[0] <<  "\t" << info[3]  <<  "\t"
+                                    << info[4] << "\t" << info[5] <<  "\t" << info[6]  <<  "\t" << info[7]  <<  "\t" 
+                                    << info[8]  <<  "\t" << info[9] << "\t" << info[10] <<  "\t" << info[11]  <<  "\t" 
+                                    << info[12]  << std::endl;
                     std::cout << CURSOR_TO_START << CLEAR_LINE;
                                 
                 }

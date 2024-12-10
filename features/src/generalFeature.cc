@@ -52,6 +52,7 @@ using DataMap = std::unordered_map<Key, Value>;
 // Define macros for cursor control in console output
 #define CURSOR_TO_START "\033[1G"
 #define CLEAR_LINE "\033[K"
+double DELTA_SMEARING = 40.;
 
 // OS-specific directory creation
 #ifdef _WIN32
@@ -188,7 +189,7 @@ std::vector<double> generalFeature(std::string particleName, TString filePath, i
     ////////// WEIGHTED TIME  + EfractionCell + numUniqueCells //////////    
     /////////////////////////////////////////////////////////////////////
 
-    int unique_cells;
+    int unique_cells = energyMap.size();
     double EfractionCell_num = 0.0;   // Numerator for energy fraction within a specific radius
     double EfractionCell_denom = 0.0; // Denominator for energy fraction within a distance of 1
 
@@ -199,7 +200,6 @@ std::vector<double> generalFeature(std::string particleName, TString filePath, i
     // Iterate over each entry in the energyMap, which maps keys (cublet, cell) to energy and time values
     for (const auto &entry : energyMap)
     {
-        unique_cells += 1;
 
         int index = entry.first; 
         std::vector<int> pos = index_to_pos(entry.first,size_cell);
@@ -225,7 +225,7 @@ std::vector<double> generalFeature(std::string particleName, TString filePath, i
 
     if (smear == "y")
     {   
-        double sigma_weightedTime = (sqrt(squareEnergySum)/totalEnergy)*40;
+        double sigma_weightedTime = (sqrt(squareEnergySum)/totalEnergy)*DELTA_SMEARING;
         weightedTime = smearing_time(weightedTime,sigma_weightedTime);
     }
 
@@ -330,7 +330,7 @@ void fillTable( std::string particleName,
 /*
 
 Values:
-    - Efraction :       5 ( 100 100 100 ) - 3   ( 50 50 100 ) - 2 ( 25 25 100 )
+    - Efraction :       5 ( 100 100 100 ) - 3   ( 50 50 100 ) - 2 ( 25 25 100 ) - 3 ( 100 100 50 ) - 2 ( 100 100 25 ) - 2 ( 10 10 100 )   
 
 */
 

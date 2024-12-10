@@ -49,6 +49,7 @@ using DataMap = std::unordered_map<Key, Value>;
 // Define terminal macros for cursor movement and line clearing
 #define CURSOR_TO_START "\033[1G"
 #define CLEAR_LINE "\033[K"
+double DELTA_SMEARING = 40.;
 
 // Cross-platform directory creation function
 #ifdef _WIN32
@@ -248,12 +249,14 @@ std::vector<double> speedAnalysis(  std::string particleName,
 
     if (smear == "y")
     {   
-        double sigma_verteTime = (sqrt(squareEnergySum)/totEnergyVertex)*40;
+        double sigma_verteTime = (sqrt(squareEnergySum)/totEnergyVertex)*DELTA_SMEARING;
         VertexTime = smearing_time(VertexTime,sigma_verteTime);
     }
 
-    // Store the (x, y, z) coordinates of the vertex
+    // Store the (x, y, z) coordinates of the vertex and find the traveled distance
     std::vector<int> vertex_pos = {x_vertex, y_vertex, z_vertex};
+    std::vector<int> central_cell = {size_cell[0]/2 , size_cell[1]/2, 0};
+    double traveled_distance = sqrt(pow(vertex_pos[0]*1.-central_cell[0]*1.,2)+pow(vertex_pos[1]*1.-central_cell[1]*1.,2)+pow(z_vertex*1.+1.,2));
 
     // Subtract min_time_0 from VertexTime to normalize the vertex time relative to the minimum time.
     double travel_time = (VertexTime - deltaT_TL[1] > 0) ? VertexTime - deltaT_TL[1] : 0.1;
@@ -264,7 +267,7 @@ std::vector<double> speedAnalysis(  std::string particleName,
     std::vector<double> out(2,0);
 
     out[0] = deltaT_TL[1];
-    out[1] = (double(z_vertex+1))/(travel_time)*100;
+    out[1] = traveled_distance/(travel_time)*100.; //scaled speed (scaling factor = 100)
    
     return out;
 }
@@ -337,9 +340,9 @@ void fillTable( std::string particleName,
 /*
 
 Values:
-    - threshold :       125 ( 100 100 100 ) - 125   ( 50 50 100 ) - 200 ( 25 25 100 )
-    - xyWindow :        2   ( 100 100 100 ) - 1     ( 50 50 100 ) - 1   ( 25 25 100 )
-    - zWindow :         1   ( 100 100 100 ) - 1     ( 50 50 100 ) - 1   ( 25 25 100 )
+    - threshold :       125 ( 100 100 100 ) - 125   ( 50 50 100 ) - 200 ( 25 25 100 ) - 175  ( 100 100 50 ) - 250 ( 100 100 25 )
+    - xyWindow :        2   ( 100 100 100 ) - 1     ( 50 50 100 ) - 1   ( 25 25 100 ) - 1   ( 100 100 50 ) - 2  ( 100 100 25 )
+    - zWindow :         1   ( 100 100 100 ) - 1     ( 50 50 100 ) - 1   ( 25 25 100 ) - 1   ( 100 100 50 ) - 1  ( 100 100 25 )
 
 */
 
