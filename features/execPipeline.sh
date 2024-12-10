@@ -57,7 +57,7 @@ for exe in "${executables[@]}"; do
     if [[ -f $args_file ]]; then
         
         # Search for the line corresponding to the given segmentation
-        args=$(grep "^$segmentation" "$args_file" | awk -F'\t' '{for (i=2; i<=NF; i++) printf $i " ";}')
+        args=$(grep -P "^$segmentation\t" "$args_file" | awk -F'\t' '{for (i=2; i<=NF; i++) printf $i " ";}')
 
         # If no matching line is found, skip this executable
         if [[ -z "$args" ]]; then
