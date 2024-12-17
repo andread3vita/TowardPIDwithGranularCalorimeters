@@ -1,6 +1,7 @@
 import pandas as pd
 import sys
 import numpy as np
+
 seg_x = sys.argv[1]
 seg_y = sys.argv[2]
 seg_z = sys.argv[3]
@@ -23,24 +24,25 @@ final_result = pd.concat([df_proton, df_pion], ignore_index=True)
 # Save the result to a new file
 final_result.to_csv(f'../../dataset/results_{seg_x}_{seg_y}_{seg_z}/final_combined.tsv', sep='\t', index=False)
 
-# Funzione per verificare NaN, Empty e Inf
+# Function to check for NaN, Empty, and Inf
 def check_for_nan_empty_inf(df):
-    # Verifica NaN (valori mancanti)
-    nan_values = df.isna().sum()  # Conta i NaN per colonna
-    print("NaN values per colonna:")
+    # Check for NaN (missing values)
+    nan_values = df.isna().sum()  # Count NaN per column
+    print("NaN values per column:")
     print(nan_values)
 
-    # Verifica valori vuoti (empty strings)
-    empty_values = (df == "").sum()  # Conta le stringhe vuote per colonna
-    print("\nEmpty values (stringhe vuote) per colonna:")
+    # Check for empty values (empty strings)
+    empty_values = (df == "").sum()  # Count empty strings per column
+    print("\nEmpty values (empty strings) per column:")
     print(empty_values)
 
-    # Verifica valori infiniti (inf, -inf)
-    inf_values = df.applymap(np.isinf).sum()  # Conta i valori infiniti per colonna
-    print("\nInf values per colonna:")
+    # Check for infinite values (inf, -inf)
+    inf_values = df.applymap(np.isinf).sum()  # Count infinite values per column
+    print("\nInf values per column:")
     print(inf_values)
 
-# Verifica la presenza di NaN, Empty e Inf
+# Check for NaN, Empty, and Inf
 check_for_nan_empty_inf(final_result)
 
 print("Combined file created: final_combined.tsv")
+

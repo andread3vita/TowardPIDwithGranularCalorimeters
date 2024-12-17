@@ -1,12 +1,10 @@
 # Standard libraries
 import sys
 import os
-import time
 
 # Libraries for data manipulation
 import numpy as np
 import pandas as pd
-import itertools
 
 # Libraries for machine learning
 import xgboost as xgb
@@ -14,7 +12,6 @@ from sklearn.metrics import (
     accuracy_score,  # Evaluate classification accuracy
     auc,             # Compute the area under the ROC curve
     confusion_matrix,  # Analyze classification errors
-    roc_auc_score,    # Compute the AUC for binary classification
     roc_curve         # Generate data for the ROC curve
 )
 from sklearn.model_selection import GridSearchCV, train_test_split  # Model selection and parameter tuning
@@ -62,6 +59,10 @@ else:
 # import data
 primary_folder = '../../dataset/'
 
+folder_path = f"{primary_folder}results_{seg_x}_{seg_y}_{seg_z}"
+if not os.path.exists(folder_path):
+    os.makedirs(folder_path)
+        
 file_path = f'{primary_folder}results_{seg_x}_{seg_y}_{seg_z}/final_combined.tsv'
 data = pd.read_csv(file_path, sep="\t")
 
@@ -272,7 +273,7 @@ plt.savefig(f'../../results/xgboost/{seg_x}_{seg_y}_{seg_z}/training_validation_
 
 plt.close()
 
-# ##### CONFUSION MATRIX (WITH AND WITHOUT NC)
+##### CONFUSION MATRIX (WITH AND WITHOUT NC)
 
 def createNC_matrix(y_test,y_pred_binary, y_pred_prob, thr):
     
@@ -380,7 +381,6 @@ def optimal_matrix(y_test, y_pred_prob,y_pred_binary):
             acc_array_pion, eff_array_pion, \
             acc_array_proton, eff_array_proton
             
-
 cm_standard = confusion_matrix(y_test, y_pred_binary, labels=[0, 1])
 acc_standard = accuracy_score(y_pred_binary,y_test)
 
