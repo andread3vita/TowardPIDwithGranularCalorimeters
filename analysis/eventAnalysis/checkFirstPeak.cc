@@ -38,7 +38,6 @@ using namespace std;
 
 using namespace std;
 
-// Funzione per ottenere l'indice di una colonna dato il nome
 int getColumnIndex(const string &filename, const string &columnName) {
     ifstream file(filename);
     string headerLine;
@@ -59,7 +58,6 @@ int getColumnIndex(const string &filename, const string &columnName) {
     return -1;
 }
 
-// Funzione per leggere una colonna specifica da un file .tsv dato l'indice
 vector<double> readColumn(const string &filename, int columnIndex) {
     ifstream file(filename);
     vector<double> columnData;
@@ -87,14 +85,12 @@ vector<double> readColumn(const string &filename, int columnIndex) {
 void ResidualsVertex(std::string filename_ref,std::string filename_check)
 {
 
-    // Trova l'indice della colonna per entrambi i file
     int columnIndex1 = getColumnIndex(filename_ref,"trueZvertex");
     int columnIndex2 = getColumnIndex(filename_check, "Z_vertex");
 
     int columnIndex_check = getColumnIndex(filename_ref,"isVertex");
     vector<double> columnData_check = readColumn(filename_ref, columnIndex_check);
 
-    // Leggi le colonne dai file
     vector<double> columnData1 = readColumn(filename_ref, columnIndex1);
     vector<double> columnData2 = readColumn(filename_check, columnIndex2);
 
@@ -109,7 +105,7 @@ void ResidualsVertex(std::string filename_ref,std::string filename_check)
         {
             true_diff.push_back(columnData1[i] - columnData2[i]);
 
-            if (abs(columnData1[i] - columnData2[i])>2)
+            if (abs(columnData1[i] - columnData2[i])<2)
             {
                 count +=1;
             }
@@ -126,7 +122,7 @@ void ResidualsVertex(std::string filename_ref,std::string filename_check)
     }
 
     std::cout << "Number of events with diff == 0: " << count_0 << "/" << true_diff.size() << " = " << (count_0*1.)/(true_diff.size()*1.)*100 << "%" << std::endl;
-    std::cout << "Number of events with diff > 2: " << count << "/" << true_diff.size() << " = " << (count*1.)/(true_diff.size()*1.)*100 << "%" << std::endl;
+    std::cout << "Number of events with diff < 2: " << count << "/" << true_diff.size() << " = " << (count*1.)/(true_diff.size()*1.)*100 << "%" << std::endl;
     TH1D *hist = new TH1D("hist", "With -1 events", 200, -100, 100);
     for (double value : full_diff) {
         hist->Fill(value);
