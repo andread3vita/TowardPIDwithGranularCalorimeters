@@ -49,7 +49,7 @@ using DataMap = std::unordered_map<Key, Value>;
 // Define terminal macros for cursor movement and line clearing
 #define CURSOR_TO_START "\033[1G"
 #define CLEAR_LINE "\033[K"
-double DELTA_SMEARING = 40.;
+double DELTA_SMEARING = 30.;
 
 // Cross-platform directory creation function
 #ifdef _WIN32
@@ -136,36 +136,45 @@ std::vector<double> speedAnalysis(  std::string particleName,
         int cub_idx = (*Tcublet_idx)[j];
         int cell_idx = (*Tcell_idx)[j];
         double E = (*Tedep)[j];  // Energy deposited in the current cell
-        double time = (*Ttime)[j];  // Timestamp of the current interaction
-        time = time*1000 + deltaT_TL[0];
 
-        // Convert the cublet and cell indices to a 3D position
-        std::vector<int> int_pos = convertPos(cub_idx, cell_idx, size_cell);
-        int index_cell = convert_to_index(cub_idx, cell_idx, size_cell);
-        
-        // Create a key (cublet, cell) to store in the energy map
-        Key key = index_cell;
-
-        // Update the energy and time in the energy map
-        if (energyMap.find(key) != energyMap.end()) {
-            
-            // If the key already exists, add the energy and update the time if it's more recent
-            std::get<0>(energyMap[key]) += E;
-            std::get<1>(energyMap[key]) += E*time;
-            std::get<2>(energyMap[key]) +=pow(E,2);
-        
-
-        } else {
-            // If the key does not exist, create a new entry with the current energy and time
-            energyMap[key] = std::make_tuple(E, E*time,pow(E,2));
-        }
-
-        // Check if the interaction is within the XY window range
-        if((int_pos[0] >= minWin && int_pos[0] <= maxWin) && 
-        (int_pos[1] >= minWin && int_pos[1] <= maxWin))
+        if (E>0)
         {
-            // Accumulate energy in the corresponding z-slice
-            en_position[int_pos[2]] += E;
+            double time = (*Ttime)[j];  // Timestamp of the current interaction
+            time = time*1000 + deltaT_TL[0];
+
+            if (smear == "d")
+            {
+                time = int(time / DELTA_SMEARING);
+            }
+            
+            // Convert the cublet and cell indices to a 3D position
+            std::vector<int> int_pos = convertPos(cub_idx, cell_idx, size_cell);
+            int index_cell = convert_to_index(cub_idx, cell_idx, size_cell);
+            
+            // Create a key (cublet, cell) to store in the energy map
+            Key key = index_cell;
+
+            // Update the energy and time in the energy map
+            if (energyMap.find(key) != energyMap.end()) {
+                
+                // If the key already exists, add the energy and update the time if it's more recent
+                std::get<0>(energyMap[key]) += E;
+                std::get<1>(energyMap[key]) += E*time;
+                std::get<2>(energyMap[key]) +=pow(E,2);
+            
+
+            } else {
+                // If the key does not exist, create a new entry with the current energy and time
+                energyMap[key] = std::make_tuple(E, E*time,pow(E,2));
+            }
+
+            // Check if the interaction is within the XY window range
+            if((int_pos[0] >= minWin && int_pos[0] <= maxWin) && 
+            (int_pos[1] >= minWin && int_pos[1] <= maxWin))
+            {
+                // Accumulate energy in the corresponding z-slice
+                en_position[int_pos[2]] += E;
+            }
         }
     }
 
@@ -204,72 +213,90 @@ std::vector<double> speedAnalysis(  std::string particleName,
     // Find the z-vertex (peak) in the smoothed energy profile using the specified threshold
     int z_vertex = findPeak(smooth_energy_pos, threshold);
 
-    //// X_VERTEX and Y_VERTEX + PostVertexEnergyFraction + VertexTime + numCellBeforeVertex + MAX and SECONDMAX
+    if (z_vertex >= 0)
+    {
+        //// X_VERTEX and Y_VERTEX + PostVertexEnergyFraction + VertexTime + numCellBeforeVertex + MAX and SECONDMAX
 
-    // Variable to store the fraction of energy deposited after the z_vertex
-    double PostVertexEnergyFraction = 0.0;
-    int numCellBeforeVertex = 0;  // Counter for the number of cells before the vertex (z_vertex)
-    double VertexTime = 10e5;
-    int x_vertex = 0;
-    int y_vertex = 0;
-    int vertex_index = 0;
+        // Variable to store the fraction of energy deposited after the z_vertex
+        double PostVertexEnergyFraction = 0.0;
+        int numCellBeforeVertex = 0;  // Counter for the number of cells before the vertex (z_vertex)
+        double VertexTime = 10e5;
+        int x_vertex = 0;
+        int y_vertex = 0;
+        int vertex_index = 0;
 
-    double squareEnergySum = 0.0;                                  // To hold squareEnergySum
-    double totEnergyVertex = 0.0;                                  // To hold totEnergyVertex
+        double squareEnergySum = 0.0;                                  // To hold squareEnergySum
+        double totEnergyVertex = 0.0;                                  // To hold totEnergyVertex
 
-    for (const auto& entry : energyMap) {
-        
-        int index = entry.first;
-        int z_layer = index / (size_cell[0]*size_cell[1]);
+        for (const auto& entry : energyMap) {
+            
+            int index = entry.first;
+            int z_layer = index / (size_cell[0]*size_cell[1]);
 
-        if (z_layer == z_vertex)
-        {   
-            double weightedTime = std::get<1>(entry.second) / std::get<0>(entry.second);
-
-            if (weightedTime < VertexTime)
+            if (z_layer == z_vertex)
             {   
+                double weightedTime = std::get<1>(entry.second) / std::get<0>(entry.second);
 
-                double E2 = std::get<2>(entry.second);
-                squareEnergySum = E2;
-                totEnergyVertex = std::get<0>(entry.second);
+                if (weightedTime < VertexTime)
+                {   
 
-                VertexTime = weightedTime;
+                    double E2 = std::get<2>(entry.second);
+                    squareEnergySum = E2;
+                    totEnergyVertex = std::get<0>(entry.second);
 
-                int plane_index =  index % (size_cell[0]*size_cell[1]);
+                    VertexTime = weightedTime;
 
-                x_vertex = (plane_index % size_cell[0]);
-                y_vertex = (size_cell[1] - 1) - (plane_index / size_cell[0]);
+                    int plane_index =  index % (size_cell[0]*size_cell[1]);
 
-                vertex_index = index;
+                    x_vertex = (plane_index % size_cell[0]);
+                    y_vertex = (size_cell[1] - 1) - (plane_index / size_cell[0]);
 
+                    vertex_index = index;
+
+                }
             }
+            
         }
+
+        if (smear == "y")
+        {   
+            double sigma_verteTime = (sqrt(squareEnergySum)/totEnergyVertex)*DELTA_SMEARING;
+            VertexTime = smearing_time(VertexTime,sigma_verteTime);
+        }
+
+        // Store the (x, y, z) coordinates of the vertex and find the traveled distance
+        std::vector<int> vertex_pos = {x_vertex, y_vertex, z_vertex};
+        std::vector<int> central_cell = {size_cell[0]/2 , size_cell[1]/2, 0};
+        // double traveled_distance = sqrt(pow(vertex_pos[0]*1.-central_cell[0]*1.,2)+pow(vertex_pos[1]*1.-central_cell[1]*1.,2)+pow(z_vertex*1.+1.,2));
+        double traveled_distance = z_vertex + 1.;
         
-    }
+        // Subtract min_time_0 from VertexTime to normalize the vertex time relative to the minimum time.
+        double travel_time = (VertexTime - deltaT_TL[1] > 0) ? VertexTime - deltaT_TL[1] : 0.1;
+        
+        inputFile->Close();
+        delete inputFile;
+        
+        std::vector<double> out(2,0);
 
-    if (smear == "y")
-    {   
-        double sigma_verteTime = (sqrt(squareEnergySum)/totEnergyVertex)*DELTA_SMEARING;
-        VertexTime = smearing_time(VertexTime,sigma_verteTime);
-    }
-
-    // Store the (x, y, z) coordinates of the vertex and find the traveled distance
-    std::vector<int> vertex_pos = {x_vertex, y_vertex, z_vertex};
-    std::vector<int> central_cell = {size_cell[0]/2 , size_cell[1]/2, 0};
-    double traveled_distance = sqrt(pow(vertex_pos[0]*1.-central_cell[0]*1.,2)+pow(vertex_pos[1]*1.-central_cell[1]*1.,2)+pow(z_vertex*1.+1.,2));
-
-    // Subtract min_time_0 from VertexTime to normalize the vertex time relative to the minimum time.
-    double travel_time = (VertexTime - deltaT_TL[1] > 0) ? VertexTime - deltaT_TL[1] : 0.1;
+        out[0] = deltaT_TL[1];
+        out[1] = traveled_distance/(travel_time)*100.; //scaled speed (scaling factor = 100)
     
-    inputFile->Close();
-    delete inputFile;
-    
-    std::vector<double> out(2,0);
+        return out;
+    }
+    else
+    {
 
-    out[0] = deltaT_TL[1];
-    out[1] = traveled_distance/(travel_time)*100.; //scaled speed (scaling factor = 100)
-   
-    return out;
+        inputFile->Close();
+        delete inputFile;
+
+        std::vector<double> out(2,0);
+
+        out[0] = deltaT_TL[1];
+        out[1] = -1;
+    
+        return out;
+
+    }
 }
 
 void fillTable( std::string particleName, 
@@ -401,7 +428,11 @@ int main(int argc, char* argv[]) {
     {
         folderPath += "Smearing";
     }
-    else
+    else if (smear == "d")
+    {
+        folderPath += "Digitalization";
+    }
+    else 
     {
         folderPath += "noSmearing";
     }

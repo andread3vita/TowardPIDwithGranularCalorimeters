@@ -1,7 +1,7 @@
 # Standard libraries
 import sys
 import os
-import time
+from filelock import FileLock
 
 # Libraries for data manipulation
 import numpy as np
@@ -35,38 +35,18 @@ seed = 42
 ######### INPUT #########
 #########################
 
-seg_x = sys.argv[1]
-seg_y = sys.argv[2]
-seg_z = sys.argv[3]
-
-# create Summary Table# Create Summary Table
-target_file = "../../results/xgboost/accuracyTable.tsv"
-segmentation = f"{seg_x}_{seg_y}_{seg_z}"
-
-if not os.path.exists(target_file):
-
-    headers = ["segmentation", "accuracy", "minVal", "maxVal", "threshold", "tradeOffValue"]
-    with open(target_file, "w") as file:
-        file.write("\t".join(headers) + "\n")
-else:
-    with open(target_file, "r") as file:
-        lines = file.readlines()
-
-    updated_lines = [line for line in lines if not line.startswith(segmentation)]
-
-    if len(updated_lines) != len(lines):
-        with open(target_file, "w") as file:
-            file.writelines(updated_lines)
-
-
-# import data
 primary_folder = '../../dataset/'
+
+seg_x = 100
+seg_y = 100
+seg_z = 100
 
 file_path = f'{primary_folder}results_{seg_x}_{seg_y}_{seg_z}/final_combined.tsv'
 data = pd.read_csv(file_path, sep="\t")
 
 # Split features (X) and target (y)
 X = data.iloc[:, :-1]
+X = X[["TotalEnergy","weightedTime","time0"]]
 y = data.iloc[:, -1]
 
 # Shuffle the data
@@ -163,7 +143,6 @@ y_pred_binary = (y_pred_proba > 0.5).astype(int)  # Convert to binary labels
 ###########################
 
 ###### ROC
-
 fpr, tpr, thresholds = roc_curve(y_test, y_pred_proba)
 
 # Sigma
@@ -192,19 +171,19 @@ plt.title('ROC Curve with 1-Sigma Uncertainty Region')
 plt.legend(loc='lower right')
 plt.grid()
 plt.tight_layout()
-plt.savefig(f'../../results/xgboost/{seg_x}_{seg_y}_{seg_z}/roc_curve_with_uncertainty.png')
+plt.savefig(f'../../results/xgboost/baseline/roc_curve_with_uncertainty.png')
 
 plt.show()
 
 ###### FEATURE IMPORTANCE
-
 plt.figure(figsize=(10, 8))
 
 xgb.plot_importance(best_model, importance_type='gain', max_num_features=20, title="Feature Importance", height=0.8)
 plt.tight_layout()
-plt.savefig(f'../../results/xgboost/{seg_x}_{seg_y}_{seg_z}/feature_importance_best_model.png')
+plt.savefig(f'../../results/xgboost/baseline/feature_importance_best_model.png')
 
 plt.close()
+
 
 ##### CONFIDENCE DISTRIBUTION
 
@@ -249,7 +228,7 @@ plt.title('Distribution of Predicted Probabilities for True vs False Class')
 plt.legend(loc='best')
 plt.grid(True)
 plt.tight_layout()
-plt.savefig(f'../../results/xgboost/{seg_x}_{seg_y}_{seg_z}/predicted_probability_distribution.png')
+plt.savefig(f'../../results/xgboost/baseline/predicted_probability_distribution.png')
 
 plt.close()
 
@@ -268,11 +247,11 @@ plt.title('Training and Validation Loss per Epoch')
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
-plt.savefig(f'../../results/xgboost/{seg_x}_{seg_y}_{seg_z}/training_validation_loss.png')
+plt.savefig(f'../../results/xgboost/baseline/training_validation_loss.png')
 
 plt.close()
 
-# ##### CONFUSION MATRIX (WITH AND WITHOUT NC)
+##### CONFUSION MATRIX (WITH AND WITHOUT NC)
 
 def createNC_matrix(y_test,y_pred_binary, y_pred_prob, thr):
     
@@ -303,58 +282,32 @@ def optimal_matrix(y_test, y_pred_prob,y_pred_binary):
     
     acc_array = []
     eff_array = []
-
-    acc_array_pion = []
-    eff_array_pion = []
-
-    acc_array_proton = []
-    eff_array_proton = []
     
     for i in range(100):
         
         thr_test = 0.01 + 0.01*i
         cm = createNC_matrix(y_test, y_pred_binary, y_pred_prob,thr_test)
         
-        denominator = cm[0, 0] + cm[1, 1] + cm[0, 1] + cm[1, 0]
-        denominator_proton = cm[0, 0] + cm[0, 1]
-        denominator_pion = cm[1, 0] + cm[1, 1]
-
-        if denominator == 0:
+        try:
+            denominator = cm[0, 0] + cm[1, 1] + cm[0, 1] + cm[1, 0]
+            if denominator == 0:
+                acc = 0
+            else:
+                acc = (cm[0, 0] + cm[1, 1]) / denominator
+        except (ZeroDivisionError, RuntimeWarning):
             acc = 0
-        else:
-            acc = (cm[0, 0] + cm[1, 1]) / denominator
 
-        if denominator_proton == 0:
-            acc_proton = 0
-            
-        else:
-            acc_proton = (cm[0, 0]) / denominator_proton
-
-        if denominator_pion == 0:
-            acc_pion = 0
-        else:
-            acc_pion = (cm[1, 1]) / denominator_pion
+        try:
+            eff = (cm[0, 0] + cm[1, 1] + cm[1, 0] + cm[0, 1]) / np.sum(cm)
+        except (ZeroDivisionError, RuntimeWarning):
+            eff = 0
         
-        
-        eff = (cm[0, 0] + cm[1, 1] + cm[1, 0] + cm[0, 1]) / np.sum(cm)
-        eff_proton = (cm[0, 0] + cm[0, 1]) / (cm[0, 0] + cm[0, 1]+ cm[0, 2])
-        eff_pion = (cm[1, 0] + cm[1, 1]) / (cm[1, 0] + cm[1, 1]+ cm[1, 2])
-
         acc_array.append(acc)
         eff_array.append(eff)
-
-        acc_array_pion.append(acc_pion)
-        eff_array_pion.append(eff_pion)
-
-        acc_array_proton.append(acc_proton)
-        eff_array_proton.append(eff_proton)
-
-
-    thr = 0.01 + np.arange(100) * 0.01
-
-    #total info
+    
     acc_array = np.array(acc_array)
     eff_array = np.array(eff_array)
+    thr = 0.01 + np.arange(100) * 0.01
     
     acc_interp = interp1d(thr, acc_array, kind='linear', fill_value="extrapolate")
     eff_interp = interp1d(thr, eff_array, kind='linear', fill_value="extrapolate")
@@ -365,21 +318,9 @@ def optimal_matrix(y_test, y_pred_prob,y_pred_binary):
     intersection_value = acc_interp(intersection_thr)
     
     cm_acc = createNC_matrix(y_test, y_pred_binary, y_pred_prob,intersection_thr)
-
-    #proton info
-    acc_array_proton = np.array(acc_array_proton)
-    eff_array_proton = np.array(eff_array_proton)
-
-    #proton info
-    acc_array_pion = np.array(acc_array_pion)
-    eff_array_pion = np.array(eff_array_pion)
     
-    
-    return cm_acc, \
-            intersection_thr, intersection_value, acc_array, eff_array, \
-            acc_array_pion, eff_array_pion, \
-            acc_array_proton, eff_array_proton
-            
+    return cm_acc, intersection_thr, intersection_value, acc_array, eff_array
+
 
 cm_standard = confusion_matrix(y_test, y_pred_binary, labels=[0, 1])
 acc_standard = accuracy_score(y_pred_binary,y_test)
@@ -399,10 +340,7 @@ lower_bound = beta.ppf(alpha / 2, n_t, n - n_t + 1)
 upper_bound = beta.ppf(1 - alpha / 2, n_t + 1, n - n_t)
 
 
-cm_acc, \
-    thr_acc, acc_withNC, acc_array, eff_array,\
-    acc_array_pion, eff_array_pion, \
-    acc_array_proton, eff_array_proton = optimal_matrix(y_test, y_pred_proba,y_pred_binary)
+cm_acc, thr_acc, acc_withNC, acc_array, eff_array = optimal_matrix(y_test, y_pred_proba,y_pred_binary)
 
 pred_labels_standard = ['0', '1'] 
 pred_labels_with_nc = ['0', '1', 'NC'] 
@@ -447,7 +385,7 @@ for ax in axes:
     ax.xaxis.label.set_fontsize(14)
     ax.yaxis.label.set_fontsize(14)
 
-plt.savefig(f'../../results/xgboost/{seg_x}_{seg_y}_{seg_z}/confusion_matrices.png')
+plt.savefig(f'../../results/xgboost/baseline/confusion_matrices.png')
 
 plt.show()
 
@@ -456,7 +394,6 @@ plt.show()
 
 thr = 0.01 + np.arange(100) * 0.01
 
-# Interpolation for general data
 acc_interp = interp1d(thr, acc_array, kind='linear', fill_value="extrapolate")
 eff_interp = interp1d(thr, eff_array, kind='linear', fill_value="extrapolate")
 thresholds = np.linspace(thr.min(), thr.max(), 1000)
@@ -465,32 +402,12 @@ intersection_idx = np.where(np.diff(np.sign(differences)))[0][0]
 intersection_thr = thresholds[intersection_idx]
 intersection_value = acc_interp(intersection_thr)
 
-# Interpolation for protons
-acc_interp_proton = interp1d(thr, acc_array_proton, kind='linear', fill_value="extrapolate")
-eff_interp_proton = interp1d(thr, eff_array_proton, kind='linear', fill_value="extrapolate")
-thresholds = np.linspace(thr.min(), thr.max(), 1000)
-differences_proton = acc_interp_proton(thresholds) - eff_interp_proton(thresholds)
-intersection_idx_proton = np.where(np.diff(np.sign(differences_proton)))[0][0]
-intersection_thr_proton = thresholds[intersection_idx_proton]
-intersection_value_proton = acc_interp_proton(intersection_thr_proton)
+plt.figure(figsize=(8, 6), dpi=100)
 
-# Interpolation for pions
-acc_interp_pion = interp1d(thr, acc_array_pion, kind='linear', fill_value="extrapolate")
-eff_interp_pion = interp1d(thr, eff_array_pion, kind='linear', fill_value="extrapolate")
-thresholds = np.linspace(thr.min(), thr.max(), 1000)
-differences_pion = acc_interp_pion(thresholds) - eff_interp_pion(thresholds)
-intersection_idx_pion = np.where(np.diff(np.sign(differences_pion)))[0][0]
-intersection_thr_pion = thresholds[intersection_idx_pion]
-intersection_value_pion = acc_interp_pion(intersection_thr_pion)
-
-# Plotting
-fig, axes = plt.subplots(1, 3, figsize=(24, 8))
-
-# General plot
-axes[0].plot(thr, acc_array, label="Accuracy", color="blue", linestyle="-")
-axes[0].plot(thr, eff_array, label="Efficiency", color="green", linestyle="-")
-axes[0].axvline(intersection_thr, color="red", linestyle=":", label=f"Intersection at {intersection_thr:.2f}")
-axes[0].annotate(
+plt.plot(thr, acc_array, label="Accuracy", color="blue", linestyle="-")
+plt.plot(thr, eff_array, label="Efficiency", color="green", linestyle="-")
+plt.axvline(intersection_thr, color="red", linestyle=":", label=f"Intersection at {intersection_thr:.2f}")
+plt.annotate(
     f"({intersection_thr:.2f}, {intersection_value:.2f})",
     xy=(intersection_thr, intersection_value),
     xytext=(intersection_thr + 0.02, intersection_value + 0.1),
@@ -498,60 +415,41 @@ axes[0].annotate(
     fontsize=10,
     color="red"
 )
-axes[0].set_title("Accuracy and Efficiency vs Threshold (General)")
-axes[0].set_xlabel("Threshold")
-axes[0].set_ylabel("Value")
-axes[0].grid(True)
-axes[0].legend()
-
-# Proton plot
-axes[1].plot(thr, acc_array_proton, label="Accuracy (Proton)", color="blue", linestyle="-")
-axes[1].plot(thr, eff_array_proton, label="Efficiency (Proton)", color="green", linestyle="-")
-axes[1].axvline(intersection_thr_proton, color="red", linestyle=":", label=f"Intersection at {intersection_thr_proton:.2f}")
-axes[1].annotate(
-    f"({intersection_thr_proton:.2f}, {intersection_value_proton:.2f})",
-    xy=(intersection_thr_proton, intersection_value_proton),
-    xytext=(intersection_thr_proton + 0.02, intersection_value_proton + 0.1),
-    arrowprops=dict(facecolor='red', shrink=0.05),
-    fontsize=10,
-    color="red"
-)
-axes[1].set_title("Accuracy and Efficiency vs Threshold (Proton)")
-axes[1].set_xlabel("Threshold")
-axes[1].set_ylabel("Value")
-axes[1].grid(True)
-axes[1].legend()
-
-# Pion plot
-axes[2].plot(thr, acc_array_pion, label="Accuracy (Pion)", color="blue", linestyle="-")
-axes[2].plot(thr, eff_array_pion, label="Efficiency (Pion)", color="green", linestyle="-")
-axes[2].axvline(intersection_thr_pion, color="red", linestyle=":", label=f"Intersection at {intersection_thr_pion:.2f}")
-axes[2].annotate(
-    f"({intersection_thr_pion:.2f}, {intersection_value_pion:.2f})",
-    xy=(intersection_thr_pion, intersection_value_pion),
-    xytext=(intersection_thr_pion + 0.02, intersection_value_pion + 0.1),
-    arrowprops=dict(facecolor='red', shrink=0.05),
-    fontsize=10,
-    color="red"
-)
-axes[2].set_title("Accuracy and Efficiency vs Threshold (Pion)")
-axes[2].set_xlabel("Threshold")
-axes[2].set_ylabel("Value")
-axes[2].grid(True)
-axes[2].legend()
-
+plt.title("Accuracy and Efficiency vs Threshold")
+plt.xlabel("Threshold")
+plt.ylabel("Value")
+plt.grid(True)
+plt.legend()
 plt.tight_layout()
-plt.savefig(f'../../results/xgboost/{seg_x}_{seg_y}_{seg_z}/accuracy_efficiency.png')
+plt.savefig(f'../../results/xgboost/baseline/accuracy_efficiency.png')
+
 plt.show()
 
+target_file = "../../results/xgboost/baseline.tsv"
+data = {
+        "segmentation": ['baseline'],
+        "accuracy": [-1],
+        "minVal": [-1],
+        "maxVal": [-1],
+        "threshold": [-1],
+        "tradeOffValue": [-1],
+    }
 
-##########################
-######### OUTPUT #########
-##########################
+summaryTable = pd.DataFrame(data)
+os.makedirs(os.path.dirname(target_file), exist_ok=True)
 
-def append_to_file(file_path, row):
-    with open(file_path, "a") as file:
-        file.write(row + "\n")
+segmentation = 'baseline'
+summaryTable["accuracy"] = summaryTable["accuracy"].astype(float)
+summaryTable["minVal"] = summaryTable["minVal"].astype(float)
+summaryTable["maxVal"] = summaryTable["maxVal"].astype(float)
+summaryTable["threshold"] = summaryTable["threshold"].astype(float)
+summaryTable["tradeOffValue"] = summaryTable["tradeOffValue"].astype(float)
+        
+summaryTable.loc[summaryTable["segmentation"] == segmentation, "accuracy"] = acc_standard
+summaryTable.loc[summaryTable["segmentation"] == segmentation, "minVal"] = lower_bound
+summaryTable.loc[summaryTable["segmentation"] == segmentation, "maxVal"] = upper_bound
 
+summaryTable.loc[summaryTable["segmentation"] == segmentation, "threshold"] = intersection_thr
+summaryTable.loc[summaryTable["segmentation"] == segmentation, "tradeOffValue"] = intersection_value
 
-append_to_file(target_file, f"{segmentation}\t{acc_standard}\t{lower_bound}\t{upper_bound}\t{intersection_thr}\t{intersection_value}")
+summaryTable.to_csv(target_file, sep="\t", index=False)

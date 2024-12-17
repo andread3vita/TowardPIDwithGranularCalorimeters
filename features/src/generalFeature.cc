@@ -52,7 +52,7 @@ using DataMap = std::unordered_map<Key, Value>;
 // Define macros for cursor control in console output
 #define CURSOR_TO_START "\033[1G"
 #define CLEAR_LINE "\033[K"
-double DELTA_SMEARING = 40.;
+double DELTA_SMEARING = 30.;
 
 // OS-specific directory creation
 #ifdef _WIN32
@@ -120,32 +120,41 @@ std::vector<double> generalFeature(std::string particleName, TString filePath, i
         int cub_idx = (*Tcublet_idx)[j];
         int cell_idx = (*Tcell_idx)[j];
         double E = (*Tedep)[j];  // Energy deposited in the current cell
-        double time = (*Ttime)[j];  // Timestamp of the current interaction
-        time = time*1000 + deltaT_TL;
 
-        // Convert the cublet and cell indices to a 3D position
-        std::vector<int> int_pos = convertPos(cub_idx, cell_idx, size_cell);
-        
-        int index_cell = convert_to_index(cub_idx, cell_idx, size_cell);
-        
-        // Create a key (cublet, cell) to store in the energy map
-        Key key = index_cell;
+        if (E>0)
+        {
+            double time = (*Ttime)[j];  // Timestamp of the current interaction
+            time = time*1000 + deltaT_TL;
 
-        // Accumulate the total energy for the event and compute time0
-        totalEnergy += E;
-        
-        // Update the energy and time in the energy map
-        if (energyMap.find(key) != energyMap.end()) {
+            if (smear == "d")
+            {
+                time = int(time / DELTA_SMEARING);
+            }
+
+            // Convert the cublet and cell indices to a 3D position
+            std::vector<int> int_pos = convertPos(cub_idx, cell_idx, size_cell);
             
-            // If the key already exists, add the energy and update the time if it's more recent
-            std::get<0>(energyMap[key]) += E;
-            std::get<1>(energyMap[key]) += E*time;
-            std::get<2>(energyMap[key]) +=pow(E,2);
-        
+            int index_cell = convert_to_index(cub_idx, cell_idx, size_cell);
+            
+            // Create a key (cublet, cell) to store in the energy map
+            Key key = index_cell;
 
-        } else {
-            // If the key does not exist, create a new entry with the current energy and time
-            energyMap[key] = std::make_tuple(E, E*time,pow(E,2));
+            // Accumulate the total energy for the event and compute time0
+            totalEnergy += E;
+            
+            // Update the energy and time in the energy map
+            if (energyMap.find(key) != energyMap.end()) {
+                
+                // If the key already exists, add the energy and update the time if it's more recent
+                std::get<0>(energyMap[key]) += E;
+                std::get<1>(energyMap[key]) += E*time;
+                std::get<2>(energyMap[key]) +=pow(E,2);
+            
+
+            } else {
+                // If the key does not exist, create a new entry with the current energy and time
+                energyMap[key] = std::make_tuple(E, E*time,pow(E,2));
+            }
         }
     }
     
@@ -387,11 +396,15 @@ int main(int argc, char* argv[]) {
     {
         folderPath += "Smearing";
     }
-    else
+    else if (smear == "d")
+    {
+        folderPath += "Digitalization";
+    }
+    else 
     {
         folderPath += "noSmearing";
     }
-
+    
     // Try to create the folder
     if (createDirectory(folderPath) == 0) {
         std::cout << "Directory created successfully: " << folderPath << std::endl;

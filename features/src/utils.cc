@@ -207,7 +207,7 @@ int findPeak(const std::vector<double> &vec, double threshold = 60.0)
         }
     }
 
-    return 99; // Return 99 if no peak is found
+    return -1; // Return 99 if no peak is found
 }
 
 ///////////////////// smearing //////////////////////////

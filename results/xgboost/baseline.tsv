@@ -1,0 +1,2 @@
+segmentation	accuracy	minVal	maxVal	threshold	tradeOffValue
+baseline	0.5974	0.593378215866034	0.6014087861761873	0.5570270270270271	0.631233224415798
