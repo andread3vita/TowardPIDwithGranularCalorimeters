@@ -83,19 +83,16 @@ std::vector<double> missingEnergy(TString filePath, int eventNum, std::vector<in
         int cell_idx = (*Tcell_idx)[j];  // Cell index
         double E = (*Tedep)[j];          // Energy deposited
 
-        if (E>0)
-        {
-            // Convert indices into 3D position
-            std::vector<int> int_pos = convertPos(cub_idx, cell_idx, size_cell);
+        // Convert indices into 3D position
+        std::vector<int> int_pos = convertPos(cub_idx, cell_idx, size_cell);
 
-            // Rescale the x and y coordinates
-            double rescaled_x = int_pos[0] - (size_cell[0] - 1) / 2;
-            double rescaled_y = int_pos[1] - (size_cell[1] - 1) / 2;
+        // Rescale the x and y coordinates
+        double rescaled_x = int_pos[0] - (size_cell[0] - 1) / 2;
+        double rescaled_y = int_pos[1] - (size_cell[1] - 1) / 2;
 
-            // Compute the asymmetry as energy-weighted displacements
-            asy_x += E * rescaled_x;
-            asy_y += E * rescaled_y;
-        }
+        // Compute the asymmetry as energy-weighted displacements
+        asy_x += E * rescaled_x;
+        asy_y += E * rescaled_y;
     }
 
     // Compute the overall asymmetry based on the x and y components
@@ -132,33 +129,30 @@ std::vector<double> missingEnergyPlain(TString filePath, int eventNum, std::vect
         int cell_idx = (*Tcell_idx)[j];  // Cell index
         double E = (*Tedep)[j];          // Energy deposited
 
-        if (E>0)
+        // Convert indices into 3D position
+        std::vector<int> int_pos = convertPos(cub_idx, cell_idx, size_cell);
+
+        // Rescale the x and y coordinates
+        double rescaled_x = int_pos[0] - (size_cell[0] - 1) / 2;
+        double rescaled_y = int_pos[1] - (size_cell[1] - 1) / 2;
+
+        // Adjust the asymmetry calculation based on the sign of the coordinates
+        if (rescaled_x > 0)
         {
-            // Convert indices into 3D position
-            std::vector<int> int_pos = convertPos(cub_idx, cell_idx, size_cell);
+            asy_x += E; // Positive x contribution
+        }
+        else if (rescaled_x < 0)
+        {
+            asy_x -= E; // Negative x contribution
+        }
 
-            // Rescale the x and y coordinates
-            double rescaled_x = int_pos[0] - (size_cell[0] - 1) / 2;
-            double rescaled_y = int_pos[1] - (size_cell[1] - 1) / 2;
-
-            // Adjust the asymmetry calculation based on the sign of the coordinates
-            if (rescaled_x > 0)
-            {
-                asy_x += E; // Positive x contribution
-            }
-            else if (rescaled_x < 0)
-            {
-                asy_x -= E; // Negative x contribution
-            }
-
-            if (rescaled_y > 0)
-            {
-                asy_y += E; // Positive y contribution
-            }
-            else if (rescaled_y < 0)
-            {
-                asy_y -= E; // Negative y contribution
-            }
+        if (rescaled_y > 0)
+        {
+            asy_y += E; // Positive y contribution
+        }
+        else if (rescaled_y < 0)
+        {
+            asy_y -= E; // Negative y contribution
         }
     }
 

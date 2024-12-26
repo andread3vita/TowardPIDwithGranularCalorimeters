@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <vector>
 #include <stdexcept>
+#include <numeric>
 
 std::string returnFilePath(std::string particleName);
 

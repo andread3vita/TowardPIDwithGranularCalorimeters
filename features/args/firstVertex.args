@@ -26,7 +26,7 @@ segmentation	threshold	closeVertex	xyWindow	zWindow	smearing
 50_50_5	ND	ND	ND	ND	ND
 50_50_10	ND	ND	ND	ND	ND
 50_50_20	ND	ND	ND	ND	ND
-50_50_25	ND	ND	ND	ND	ND
+50_50_25	220	2	1	1	y
 50_50_50	ND	ND	ND	ND	ND
 50_50_100	125	3	1	1	y
 100_100_5	ND	ND	ND	ND	ND

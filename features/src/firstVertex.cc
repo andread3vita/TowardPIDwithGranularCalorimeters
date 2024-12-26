@@ -480,7 +480,7 @@ void fillTable( std::string particleName,
                 std::string folderPath="")
 {
 
-    std::string outFile = folderPath + "/" + particleName + ".tsv";
+   std::string outFile = folderPath + "/" + particleName + std::to_string(std::round(threshold))+".tsv"; ///change it before executing
     std::ofstream oFile(outFile, std::ios::out);
 
     oFile << "FileName\t";

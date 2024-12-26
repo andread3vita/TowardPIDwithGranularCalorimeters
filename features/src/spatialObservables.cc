@@ -94,18 +94,14 @@ std::vector<double> SpatialObservables(TString filePath, int eventNum, std::vect
         int cell_idx = (*Tcell_idx)[j];
         double E = (*Tedep)[j];
 
-        if (E>0)
-        {
+        // Convert indices to spatial positions
+        std::vector<int> int_pos = convertPos(cub_idx, cell_idx, size_cell);
 
-            // Convert indices to spatial positions
-            std::vector<int> int_pos = convertPos(cub_idx, cell_idx, size_cell);
-
-            // Store positions and energy
-            x_pos.push_back(int_pos[0]);
-            y_pos.push_back(int_pos[1]);
-            z_pos.push_back(int_pos[2]);
-            ENERGY.push_back(E);
-        }
+        // Store positions and energy
+        x_pos.push_back(int_pos[0]);
+        y_pos.push_back(int_pos[1]);
+        z_pos.push_back(int_pos[2]);
+        ENERGY.push_back(E);
     }
 
     // Calculate mean positions weighted by energy

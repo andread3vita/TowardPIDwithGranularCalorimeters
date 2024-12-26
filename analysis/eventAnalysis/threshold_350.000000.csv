@@ -1,0 +1,3 @@
+Condition,Count,Total,Percentage
+diff == 0,42802,49892,85.7893%
+diff < 2,46861,49892,93.9249%
