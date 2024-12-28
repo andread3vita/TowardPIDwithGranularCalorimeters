@@ -17,6 +17,11 @@
 #include <TMultiGraph.h>
 #include <dirent.h>
 
+#include <numeric>
+#include <random>
+#include "/lustre/cmswork/aabhishe/TowardPIDwithGranularCalorimeters/features/include/utils.h"
+
+
 using namespace std;
 
 ///////////////////// utils //////////////////////////
@@ -207,7 +212,7 @@ int findPeak(const std::vector<double> &vec, double threshold = 60.0)
         }
     }
 
-    return -1; // Return 99 if no peak is found
+    return 99; // Return 99 if no peak is found
 }
 
 ///////////////////// smearing //////////////////////////

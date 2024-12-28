@@ -26,6 +26,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <numeric>
 
 #include "../include/utils.h"
 
@@ -52,7 +53,7 @@ using DataMap = std::unordered_map<Key, Value>;
 #define CURSOR_TO_START "\033[1G"
 #define CLEAR_LINE "\033[K"
 
-double DELTA_SMEARING = 30.;
+double DELTA_SMEARING = 40.;
 // Directory creation function for both Windows and POSIX-compliant systems
 int createDirectory(const std::string &path)
 {
@@ -135,60 +136,51 @@ std::vector<double> vertexAnalysis( std::string particleName,
         int cub_idx = (*Tcublet_idx)[j];
         int cell_idx = (*Tcell_idx)[j];
         double E = (*Tedep)[j];  // Energy deposited in the current cell
+        double time = (*Ttime)[j];  // Timestamp of the current interaction
+        time = time*1000 + deltaT_TL;
 
-        if (E>0)
-        {
-            double time = (*Ttime)[j];  // Timestamp of the current interaction
-            time = time*1000 + deltaT_TL;
+        // Convert the cublet and cell indices to a 3D position
+        std::vector<int> int_pos = convertPos(cub_idx, cell_idx, size_cell);
+        int index_cell = convert_to_index(cub_idx, cell_idx, size_cell);
+        
+        // Create a key (cublet, cell) to store in the energy map
+        Key key = index_cell;
 
-            if (smear == "d")
-            {
-                time = int(time / DELTA_SMEARING);
-            }
+        // Accumulate the total energy for the event
+        totalEnergy += E;
+
+        // Update the energy and time in the energy map
+        if (energyMap.find(key) != energyMap.end()) {
             
-            // Convert the cublet and cell indices to a 3D position
-            std::vector<int> int_pos = convertPos(cub_idx, cell_idx, size_cell);
-            int index_cell = convert_to_index(cub_idx, cell_idx, size_cell);
-            
-            // Create a key (cublet, cell) to store in the energy map
-            Key key = index_cell;
+            // If the key already exists, add the energy and update the time if it's more recent
+            std::get<0>(energyMap[key]) += E;
+            std::get<1>(energyMap[key]) += E*time;
+            std::get<2>(energyMap[key]) +=pow(E,2);
+        
 
-            // Accumulate the total energy for the event
-            totalEnergy += E;
-
-            // Update the energy and time in the energy map
-            if (energyMap.find(key) != energyMap.end()) {
-                
-                // If the key already exists, add the energy and update the time if it's more recent
-                std::get<0>(energyMap[key]) += E;
-                std::get<1>(energyMap[key]) += E*time;
-                std::get<2>(energyMap[key]) +=pow(E,2);
-            
-
-            } else {
-                // If the key does not exist, create a new entry with the current energy and time
-                energyMap[key] = std::make_tuple(E, E*time,pow(E,2));
-            }
-
-            // Check if the interaction is within the XY window range
-            if((int_pos[0] >= minWin && int_pos[0] <= maxWin) && 
-            (int_pos[1] >= minWin && int_pos[1] <= maxWin))
-            {
-                // Accumulate energy in the corresponding z-slice
-                en_position[int_pos[2]] += E;
-            }
-
-            // Check if the interaction is in the central tower (specific x and y condition)
-            if((int_pos[0] == (size_cell[0] / 2)) && 
-            (int_pos[1] == (size_cell[1] / 2 - 1)))
-            {
-                // Accumulate the energy contribution to the central tower fraction
-                centralTowerFraction_cell += E;
-            }
-
-            // Store the time and energy for the current interaction
-            timAndEnergy.push_back(std::make_pair(time, E));
+        } else {
+            // If the key does not exist, create a new entry with the current energy and time
+            energyMap[key] = std::make_tuple(E, E*time,pow(E,2));
         }
+
+        // Check if the interaction is within the XY window range
+        if((int_pos[0] >= minWin && int_pos[0] <= maxWin) && 
+        (int_pos[1] >= minWin && int_pos[1] <= maxWin))
+        {
+            // Accumulate energy in the corresponding z-slice
+            en_position[int_pos[2]] += E;
+        }
+
+        // Check if the interaction is in the central tower (specific x and y condition)
+        if((int_pos[0] == (size_cell[0] / 2)) && 
+        (int_pos[1] == (size_cell[1] / 2 - 1)))
+        {
+            // Accumulate the energy contribution to the central tower fraction
+            centralTowerFraction_cell += E;
+        }
+
+        // Store the time and energy for the current interaction
+        timAndEnergy.push_back(std::make_pair(time, E));
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -226,248 +218,211 @@ std::vector<double> vertexAnalysis( std::string particleName,
     // Find the z-vertex (peak) in the smoothed energy profile using the specified threshold
     int z_vertex = findPeak(smooth_energy_pos, threshold);
 
-    if (z_vertex >= 0)
-    {
-        //// X_VERTEX and Y_VERTEX + PostVertexEnergyFraction + VertexTime + numCellBeforeVertex + MAX and SECONDMAX
+    //// X_VERTEX and Y_VERTEX + PostVertexEnergyFraction + VertexTime + numCellBeforeVertex + MAX and SECONDMAX
 
-        // Variable to store the fraction of energy deposited after the z_vertex
-        double PostVertexEnergyFraction = 0.0;
-        int numCellBeforeVertex = 0;  // Counter for the number of cells before the vertex (z_vertex)
-        double VertexTime = 10e5;
-        int x_vertex = 0;
-        int y_vertex = 0;
-        int vertex_index = 0;
+    // Variable to store the fraction of energy deposited after the z_vertex
+    double PostVertexEnergyFraction = 0.0;
+    int numCellBeforeVertex = 0;  // Counter for the number of cells before the vertex (z_vertex)
+    double VertexTime = 10e5;
+    int x_vertex = 0;
+    int y_vertex = 0;
+    int vertex_index = 0;
 
-        Key maxKey, secondMaxKey;  // Variables to store the keys corresponding to max and second max energy
-        double maxE = -1.0, secondMaxE = -1.0;  // Initialize max and second max energies to -1
+    Key maxKey, secondMaxKey;  // Variables to store the keys corresponding to max and second max energy
+    double maxE = -1.0, secondMaxE = -1.0;  // Initialize max and second max energies to -1
 
-        double squareEnergySum = 0.0;                                  // To hold squareEnergySum
-        double totEnergyVertex = 0.0;                                  // To hold totEnergyVertex
-        
-        for (const auto& entry : energyMap) {       
-            
-            int index = entry.first;
-            int z_layer = index / (size_cell[0]*size_cell[1]);
-
-            if (z_layer == z_vertex)
-            {   
-                double weightedTime = std::get<1>(entry.second) / std::get<0>(entry.second);
-
-                if (weightedTime < VertexTime)
-                {   
-
-                    double E2 = std::get<2>(entry.second);
-                    squareEnergySum = E2;
-                    totEnergyVertex = std::get<0>(entry.second);
-
-                    VertexTime = weightedTime;
-
-                    int plane_index =  index % (size_cell[0]*size_cell[1]);
-
-                    x_vertex = (plane_index % size_cell[0]);
-                    y_vertex = (size_cell[1] - 1) - (plane_index / size_cell[0]);
-
-                    vertex_index = index;
-
-                }
-            }
-            else if (z_layer > z_vertex)
-            {
-                PostVertexEnergyFraction += std::get<0>(entry.second);
-            }
-            else if (z_layer < z_vertex)
-            {
-                ++numCellBeforeVertex; 
-            }
-            
-            double E = std::get<0>(entry.second);
-            // Check if the current energy is greater than the maximum energy found so far
-            if (E > maxE) {
-                // Before updating the maximum, update the second maximum with the previous max
-                secondMaxE = maxE;
-                secondMaxKey = maxKey;
-
-                // Update the maximum energy and its corresponding key
-                maxE = E;
-                maxKey = entry.first;
-
-            } else if (E > secondMaxE) {
-                // If the current energy is not the max but greater than the second max, update second max
-                secondMaxE = E;
-                secondMaxKey = entry.first;
-            }
-        }
-        
-        if (smear == "y")
-        {   
-            double sigma_vertexTime = (sqrt(squareEnergySum)/totEnergyVertex)*DELTA_SMEARING;
-            VertexTime = smearing_time(VertexTime,sigma_vertexTime);
-
-        }
+    double squareEnergySum = 0.0;                                  // To hold squareEnergySum
+    double totEnergyVertex = 0.0;                                  // To hold totEnergyVertex
     
-        // Store the (x, y, z) coordinates of the vertex
-        std::vector<int> vertex_pos = {x_vertex, y_vertex, z_vertex};
+    for (const auto& entry : energyMap) {       
+        
+        int index = entry.first;
+        int z_layer = index / (size_cell[0]*size_cell[1]);
 
-        //////////////////////////////
-        ////////// TIME 50% //////////    
-        //////////////////////////////
-
-        // Sort the timAndEnergy vector based on the time (the first element of each pair)
-        // The lambda function compares the first element (time) of two pairs
-        sort(timAndEnergy.begin(), timAndEnergy.end(), [](const pair<double, double>& a, const pair<double, double>& b) {
-            return a.first < b.first;
-        });
-
-        // Initialize cumulative sum to track the running total of energy
-        double cumulativeSum = 0.0;
-        // Loop through each pair in timAndEnergy
-        for (auto& pair : timAndEnergy) {
-            cumulativeSum += pair.second;  // Add the energy (second element) to the cumulative sum
-            pair.second = cumulativeSum;   // Replace the energy with the cumulative sum (for cumulative distribution)
-        }
-
-        // Normalize the cumulative sums by dividing each one by the total cumulative sum
-        for (auto& pair : timAndEnergy) {
-            pair.second /= cumulativeSum;  // Normalize each cumulative energy value by the total energy
-        }
-
-        // Find the time corresponding to when the cumulative energy exceeds 50% (median energy)
-        double time50 = 0.0;
-        for (const auto& pair : timAndEnergy) {
-            if (pair.second > 0.5) {  // Check if the normalized cumulative energy exceeds 50%
-                time50 = pair.first;  // Store the corresponding time (first element of the pair)
-                break;  // Stop once the 50% mark is reached
-            }
-        }
-
-        if (smear == "y")
+        if (z_layer == z_vertex)
         {   
-            time50 = smearing_time(time50,DELTA_SMEARING);
-        }
+            double weightedTime = std::get<1>(entry.second) / std::get<0>(entry.second);
 
-        ////////////////////////////////////////////////////////
-        ////////// energyCloseVertex + maxCloseVertex //////////    
-        ////////////////////////////////////////////////////////
+            if (weightedTime < VertexTime)
+            {   
 
-        // Initialize variables to track energy close to the vertex and the maximum energy near the vertex
-        double energyCloseVertex = 0;
-        double maxCloseVertex = 0;
+                double E2 = std::get<2>(entry.second);
+                squareEnergySum = E2;
+                totEnergyVertex = std::get<0>(entry.second);
 
-        // Loop through each entry in the energyMap, which stores energy for each (cublet, cell) pair
-        for (const auto& entry : energyMap) {
+                VertexTime = weightedTime;
 
-            // Convert the (cublet, cell) indices into a 3D position
-            std::vector<int> pos = index_to_pos(entry.first,size_cell);
+                int plane_index =  index % (size_cell[0]*size_cell[1]);
 
-            // Check if the distance between the current position and the vertex position is within a radius of 5 units
-            if (distance(vertex_pos, pos) <= close_vertex_radius_param)
-            {
-                double energy = std::get<0>(entry.second);  // Retrieve the stored energy for the current entry
-                
-                // Accumulate energy for positions close to the vertex
-                energyCloseVertex += energy;
+                x_vertex = (plane_index % size_cell[0]);
+                y_vertex = (size_cell[1] - 1) - (plane_index / size_cell[0]);
 
-                // Update the maximum energy near the vertex
-                if (energy > maxCloseVertex)
-                {
-                    maxCloseVertex = energy;
-                }
+                vertex_index = index;
+
             }
         }
+        else if (z_layer > z_vertex)
+        {
+            PostVertexEnergyFraction += std::get<0>(entry.second);
+        }
+        else if (z_layer < z_vertex)
+        {
+            ++numCellBeforeVertex; 
+        }
+        
+        double E = std::get<0>(entry.second);
+        // Check if the current energy is greater than the maximum energy found so far
+        if (E > maxE) {
+            // Before updating the maximum, update the second maximum with the previous max
+            secondMaxE = maxE;
+            secondMaxKey = maxKey;
 
-        // Calculate the fraction of total energy that is close to the vertex
-        double EnergyFractionCloseToVertex = energyCloseVertex / totalEnergy;
+            // Update the maximum energy and its corresponding key
+            maxE = E;
+            maxKey = entry.first;
 
-        ///////////////////////////////////////////////
-        ////////// energyVarianceCloseVertex //////////    
-        ///////////////////////////////////////////////
+        } else if (E > secondMaxE) {
+            // If the current energy is not the max but greater than the second max, update second max
+            secondMaxE = E;
+            secondMaxKey = entry.first;
+        }
+    }
+    
+    
+    if (smear == "y")
+    {   
+        double sigma_verteTime = (sqrt(squareEnergySum)/totEnergyVertex)*DELTA_SMEARING;
+        VertexTime = smearing_time(VertexTime,sigma_verteTime);
+    }
+   
+    // Store the (x, y, z) coordinates of the vertex
+    std::vector<int> vertex_pos = {x_vertex, y_vertex, z_vertex};
 
-        // Initialize a vector to store energy values for slices near the vertex
-        vector<double> slice_energy;
+    //////////////////////////////
+    ////////// TIME 50% //////////    
+    //////////////////////////////
 
-        // Loop through each entry in the energyMap, which stores energy for each (cublet, cell) pair
-        for (const auto& entry : energyMap) {
+    // Sort the timAndEnergy vector based on the time (the first element of each pair)
+    // The lambda function compares the first element (time) of two pairs
+    sort(timAndEnergy.begin(), timAndEnergy.end(), [](const pair<double, double>& a, const pair<double, double>& b) {
+        return a.first < b.first;
+    });
 
-            // Convert the cublet and cell indices into a 3D position
-            std::vector<int> int_pos = index_to_pos(entry.first, size_cell);
+    // Initialize cumulative sum to track the running total of energy
+    double cumulativeSum = 0.0;
+    // Loop through each pair in timAndEnergy
+    for (auto& pair : timAndEnergy) {
+        cumulativeSum += pair.second;  // Add the energy (second element) to the cumulative sum
+        pair.second = cumulativeSum;   // Replace the energy with the cumulative sum (for cumulative distribution)
+    }
 
-            // Check if the current position is within a window near the vertex in the xy-plane and within a z-range of 2 units
-            if ((abs(int_pos[0] - vertex_pos[0]) < xyWindowSize) && 
-                (abs(int_pos[1] - vertex_pos[1]) < xyWindowSize) && 
-                abs(int_pos[2] - vertex_pos[2]) < 2)
+    // Normalize the cumulative sums by dividing each one by the total cumulative sum
+    for (auto& pair : timAndEnergy) {
+        pair.second /= cumulativeSum;  // Normalize each cumulative energy value by the total energy
+    }
+
+    // Find the time corresponding to when the cumulative energy exceeds 50% (median energy)
+    double time50 = 0.0;
+    for (const auto& pair : timAndEnergy) {
+        if (pair.second > 0.5) {  // Check if the normalized cumulative energy exceeds 50%
+            time50 = pair.first;  // Store the corresponding time (first element of the pair)
+            break;  // Stop once the 50% mark is reached
+        }
+    }
+
+    if (smear == "y")
+    {   
+        time50 = smearing_time(time50,DELTA_SMEARING);
+    }
+
+    ////////////////////////////////////////////////////////
+    ////////// energyCloseVertex + maxCloseVertex //////////    
+    ////////////////////////////////////////////////////////
+
+    // Initialize variables to track energy close to the vertex and the maximum energy near the vertex
+    double energyCloseVertex = 0;
+    double maxCloseVertex = 0;
+
+    // Loop through each entry in the energyMap, which stores energy for each (cublet, cell) pair
+    for (const auto& entry : energyMap) {
+
+        // Convert the (cublet, cell) indices into a 3D position
+        std::vector<int> pos = index_to_pos(entry.first,size_cell);
+
+        // Check if the distance between the current position and the vertex position is within a radius of 5 units
+        if (distance(vertex_pos, pos) <= close_vertex_radius_param)
+        {
+            double energy = std::get<0>(entry.second);  // Retrieve the stored energy for the current entry
+            
+            // Accumulate energy for positions close to the vertex
+            energyCloseVertex += energy;
+
+            // Update the maximum energy near the vertex
+            if (energy > maxCloseVertex)
             {
-                // Push the energy value into the slice_energy vector
-                double E = std::get<0>(entry.second);
-                slice_energy.push_back(E); 
+                maxCloseVertex = energy;
             }
         }
-        double en_variance = computeVariance(slice_energy);
-
-        // z_vertex
-        // VertexTime
-        // PostVertexEnergyFraction = PostVertexEnergyFraction/totalEnergy;
-        // numCellBeforeVertex
-        double deltaT = time50 - VertexTime;
-        double TotalEnergyCloseToVertex = energyCloseVertex;
-        // EnergyFractionCloseToVertex
-        // maxCloseVertex
-        double VarianceAtVertex = en_variance;
-        std::vector<int> maxCoord = index_to_pos(maxKey,size_cell); double distanceMaxFromVertex = distance(maxCoord,vertex_pos);
-        centralTowerFraction_cell = centralTowerFraction_cell/totalEnergy;
-
-        inputFile->Close();
-        delete inputFile;
-        
-        std::vector<double> out(11,0);
-
-        out[0] = z_vertex*1.0;
-        out[1] =VertexTime;
-        out[2] =PostVertexEnergyFraction/totalEnergy;
-        out[3] =numCellBeforeVertex;
-        out[4] =deltaT;
-        out[5] =TotalEnergyCloseToVertex;
-        out[6] = EnergyFractionCloseToVertex;
-        out[7] =maxCloseVertex;
-        out[8] =VarianceAtVertex;
-        out[9] =distanceMaxFromVertex;
-        out[10] =centralTowerFraction_cell;
-
-        return out;
-
     }
-    else
-    {
-        double VertexTime = -1;
-        double PostVertexEnergyFraction = -1;
-        int numCellBeforeVertex = -1;
-        double deltaT = -1;
-        double TotalEnergyCloseToVertex = -1;
-        double EnergyFractionCloseToVertex  = -1;
-        double maxCloseVertex = -1;
-        double VarianceAtVertex= -1;
-        double distanceMaxFromVertex = -1;
-        centralTowerFraction_cell = centralTowerFraction_cell/totalEnergy;
 
-        inputFile->Close();
-        delete inputFile;
-        
-        std::vector<double> out(11,0);
+    // Calculate the fraction of total energy that is close to the vertex
+    double EnergyFractionCloseToVertex = energyCloseVertex / totalEnergy;
 
-        out[0] = z_vertex*1.0;
-        out[1] =VertexTime;
-        out[2] =-1;
-        out[3] =numCellBeforeVertex;
-        out[4] =deltaT;
-        out[5] =TotalEnergyCloseToVertex;
-        out[6] = EnergyFractionCloseToVertex;
-        out[7] =maxCloseVertex;
-        out[8] =VarianceAtVertex;
-        out[9] =distanceMaxFromVertex;
-        out[10] =centralTowerFraction_cell;
+    ///////////////////////////////////////////////
+    ////////// energyVarianceCloseVertex //////////    
+    ///////////////////////////////////////////////
 
-        return out;
+    // Initialize a vector to store energy values for slices near the vertex
+    vector<double> slice_energy;
 
+    // Loop through each entry in the energyMap, which stores energy for each (cublet, cell) pair
+    for (const auto& entry : energyMap) {
+
+        // Convert the cublet and cell indices into a 3D position
+        std::vector<int> int_pos = index_to_pos(entry.first, size_cell);
+
+        // Check if the current position is within a window near the vertex in the xy-plane and within a z-range of 2 units
+        if ((abs(int_pos[0] - vertex_pos[0]) < xyWindowSize) && 
+            (abs(int_pos[1] - vertex_pos[1]) < xyWindowSize) && 
+            abs(int_pos[2] - vertex_pos[2]) < 2)
+        {
+            // Push the energy value into the slice_energy vector
+            double E = std::get<0>(entry.second);
+            slice_energy.push_back(E); 
+        }
     }
+    double en_variance = computeVariance(slice_energy);
+    
+    // z_vertex
+    // VertexTime
+    // PostVertexEnergyFraction = PostVertexEnergyFraction/totalEnergy;
+    // numCellBeforeVertex
+    double deltaT = time50 - VertexTime;
+    double TotalEnergyCloseToVertex = energyCloseVertex;
+    // EnergyFractionCloseToVertex
+    // maxCloseVertex
+    double VarianceAtVertex = en_variance;
+    std::vector<int> maxCoord = index_to_pos(maxKey,size_cell); double distanceMaxFromVertex = distance(maxCoord,vertex_pos);
+    centralTowerFraction_cell = centralTowerFraction_cell/totalEnergy;
+
+    inputFile->Close();
+    delete inputFile;
+    
+    std::vector<double> out(11,0);
+
+    out[0] = z_vertex*1.0;
+    out[1] =VertexTime;
+    out[2] =PostVertexEnergyFraction/totalEnergy;
+    out[3] =numCellBeforeVertex;
+    out[4] =deltaT;
+    out[5] =TotalEnergyCloseToVertex;
+    out[6] = EnergyFractionCloseToVertex;
+    out[7] =maxCloseVertex;
+    out[8] =VarianceAtVertex;
+    out[9] =distanceMaxFromVertex;
+    out[10] =centralTowerFraction_cell;
+
+    return out;
 }
 
 void fillTable( std::string particleName,
@@ -480,7 +435,7 @@ void fillTable( std::string particleName,
                 std::string folderPath="")
 {
 
-   std::string outFile = folderPath + "/" + particleName + std::to_string(std::round(threshold))+".tsv"; ///change it before executing
+    std::string outFile = folderPath + "/" + particleName + std::to_string(std::round(threshold))+".tsv";
     std::ofstream oFile(outFile, std::ios::out);
 
     oFile << "FileName\t";
@@ -525,7 +480,7 @@ void fillTable( std::string particleName,
             if (!file->IsDirectory()) {
                 
                 TString fileName = dirPath + file->GetName();
-                for (size_t i=0; i<1000;i++)
+                for (size_t i=0; i<1000;i++) //number of events required
                 {
                 
                     totEv += 1;
@@ -615,11 +570,7 @@ int main(int argc, char* argv[]) {
     {
         folderPath += "Smearing";
     }
-    else if (smear == "d")
-    {
-        folderPath += "Digitalization";
-    }
-    else 
+    else
     {
         folderPath += "noSmearing";
     }
