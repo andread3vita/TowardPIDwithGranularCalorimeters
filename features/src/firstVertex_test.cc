@@ -26,6 +26,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <sstream>
 
 #include "../include/utils.h"
 
@@ -195,36 +196,75 @@ std::vector<double> vertexAnalysis( std::string particleName,
     ////////// VERTEX POSITION + PostVertexEnergyFraction + VertexTime + numCellBeforeVertex + MAX and SECONDMAX //////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    //// Z_VERTEX
-    // Initialize the smoothed energy positions with the original energy values
-    vector<double> smooth_energy_pos = en_position;
+    // //// Z_VERTEX
+    // // Initialize the smoothed energy positions with the original energy values
+    // vector<double> smooth_energy_pos = en_position;
 
-    // Apply smoothing if the Z-window size is greater than 1
-    if (zWindowSize > 1)
-    {
-        // Get the first value of en_position
-        double first_val = en_position[0];
+    // // Apply smoothing if the Z-window size is greater than 1
+    // if (zWindowSize > 1)
+    // {
+    //     // Get the first value of en_position
+    //     double first_val = en_position[0];
 
-        // Pad the beginning of en_position with (zWindowSize-1) copies of the first value
-        for (int k = 0; k < (zWindowSize - 1); ++k)
-        {
-            en_position.insert(en_position.begin(), first_val);  // Insert first_val at the beginning
+    //     // Pad the beginning of en_position with (zWindowSize-1) copies of the first value
+    //     for (int k = 0; k < (zWindowSize - 1); ++k)
+    //     {
+    //         en_position.insert(en_position.begin(), first_val);  // Insert first_val at the beginning
+    //     }
+
+    //     // Perform moving average smoothing
+    //     double sum = 0.0;
+    //     // Loop through en_position and calculate the moving average over the zWindowSize window
+    //     for (int i = 0; i < (en_position.size() - zWindowSize + 1); ++i) {
+    //         // Calculate the sum of elements in the current window and divide by the window size
+    //         sum = (std::accumulate(en_position.begin() + i, en_position.begin() + i + zWindowSize, 0.0)) / zWindowSize;
+            
+    //         // Update smooth_energy_pos with the smoothed value
+    //         smooth_energy_pos[i] = sum;
+    //     }
+    // }
+
+    // // Find the z-vertex (peak) in the smoothed energy profile using the specified threshold
+    // int z_vertex = findPeak(smooth_energy_pos, threshold);
+
+    // Estrae il nome del file dal percorso
+    Ssiz_t lastSlash = filePath.Last('/');
+    TString fileName = filePath(lastSlash + 1, filePath.Length());
+
+    fileName = fileName.Data();
+
+    std::string checkPath = "/lustre/cmswork/adevita/calOpt/features/isVertex/results_100_100_" + std::to_string(size_cell[2]) + "/" + particleName + ".tsv";
+    std::ifstream file(checkPath);
+    int z_vertex = 0;
+    // Lettura del file riga per riga
+    std::string line;
+    bool found = false;
+    while (std::getline(file, line)) {
+        std::istringstream iss(line);
+        std::string colFileName, colEventNum, isVertex, colTrueZvertex;
+
+        // Estrarre le colonne dal file TSV (supponendo 4 colonne)
+        if (!(iss >> colFileName >> colEventNum >> isVertex >> colTrueZvertex)) {
+            std::cerr << "Errore nella lettura del file TSV." << std::endl;
+            continue; // Salta righe malformate
         }
 
-        // Perform moving average smoothing
-        double sum = 0.0;
-        // Loop through en_position and calculate the moving average over the zWindowSize window
-        for (int i = 0; i < (en_position.size() - zWindowSize + 1); ++i) {
-            // Calculate the sum of elements in the current window and divide by the window size
-            sum = (std::accumulate(en_position.begin() + i, en_position.begin() + i + zWindowSize, 0.0)) / zWindowSize;
+        // Controlla se corrispondono fileName ed eventNum
+        if (colFileName == fileName.Data() && std::stoi(colEventNum) == eventNum) {
             
-            // Update smooth_energy_pos with the smoothed value
-            smooth_energy_pos[i] = sum;
+            z_vertex = std::stoi(colTrueZvertex);
+            found = true;
+            break; // Trova la riga corretta e termina
         }
     }
 
-    // Find the z-vertex (peak) in the smoothed energy profile using the specified threshold
-    int z_vertex = findPeak(smooth_energy_pos, threshold);
+    if (!found) {
+        std::cout << "Nessuna corrispondenza trovata per fileName ed eventNum." << std::endl;
+    }
+
+    // Chiude il file
+    file.close();
+
 
     if (z_vertex >= 0)
     {
