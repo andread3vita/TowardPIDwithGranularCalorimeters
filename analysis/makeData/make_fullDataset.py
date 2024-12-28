@@ -5,10 +5,19 @@ import numpy as np
 seg_x = sys.argv[1]
 seg_y = sys.argv[2]
 seg_z = sys.argv[3]
+time_type = sys.argv[4]
 
 # Load the two files
-df_proton = pd.read_csv(f'../../dataset/results_{seg_x}_{seg_y}_{seg_z}/final_proton.tsv', sep='\t')
-df_pion = pd.read_csv(f'../../dataset/results_{seg_x}_{seg_y}_{seg_z}/final_pion.tsv', sep='\t')
+
+df_proton = pd.DataFrame()
+df_pion = pd.DataFrame()
+
+if time_type == "d":
+    df_proton = pd.read_csv(f'../../dataset/results_{seg_x}_{seg_y}_{seg_z}/final_proton_digi.tsv', sep='\t')
+    df_pion = pd.read_csv(f'../../dataset/results_{seg_x}_{seg_y}_{seg_z}/final_pion_digi.tsv', sep='\t')
+else:
+    df_proton = pd.read_csv(f'../../dataset/results_{seg_x}_{seg_y}_{seg_z}/final_proton_smear.tsv', sep='\t')
+    df_pion = pd.read_csv(f'../../dataset/results_{seg_x}_{seg_y}_{seg_z}/final_pion_smear.tsv', sep='\t')
 
 # Remove the first two columns
 df_proton = df_proton.iloc[:, 2:]
@@ -22,7 +31,10 @@ df_pion['Class'] = 1
 final_result = pd.concat([df_proton, df_pion], ignore_index=True)
 
 # Save the result to a new file
-final_result.to_csv(f'../../dataset/results_{seg_x}_{seg_y}_{seg_z}/final_combined.tsv', sep='\t', index=False)
+if time_type == "d":
+    final_result.to_csv(f'../../dataset/results_{seg_x}_{seg_y}_{seg_z}/final_combined_digi.tsv', sep='\t', index=False)
+else:
+    final_result.to_csv(f'../../dataset/results_{seg_x}_{seg_y}_{seg_z}/final_combined_smear.tsv', sep='\t', index=False)
 
 # Function to check for NaN, Empty, and Inf
 def check_for_nan_empty_inf(df):

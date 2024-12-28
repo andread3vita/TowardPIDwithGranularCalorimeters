@@ -35,6 +35,10 @@ seed = 42
 ######### INPUT #########
 #########################
 
+folder_path = "../../results/xgboost/baseline"
+if not os.path.exists(folder_path):
+    os.makedirs(folder_path)
+    
 primary_folder = '../../dataset/'
 
 seg_x = 100
@@ -88,7 +92,7 @@ grid_search = GridSearchCV(
     scoring='balanced_accuracy',    # metric (balanced_accuracy or roc_auc)
     cv=3,                           # 3-fold cross-validation
     verbose=3,                      # Display details during execution
-    n_jobs=-1                       # Use all available cores
+    n_jobs=15                       # Use n available cores
 )
 
 # Run GridSearch

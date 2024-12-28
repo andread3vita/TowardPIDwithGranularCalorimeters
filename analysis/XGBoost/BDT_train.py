@@ -36,6 +36,8 @@ seg_x = sys.argv[1]
 seg_y = sys.argv[2]
 seg_z = sys.argv[3]
 
+time_type = sys.argv[4]
+
 # create Summary Table# Create Summary Table
 target_file = "../../results/xgboost/accuracyTable.tsv"
 segmentation = f"{seg_x}_{seg_y}_{seg_z}"
@@ -52,20 +54,26 @@ else:
     updated_lines = [line for line in lines if not line.startswith(segmentation)]
 
     if len(updated_lines) != len(lines):
-        with open(target_file, "w") as file:
-            file.writelines(updated_lines)
-
+        print("The selected segmentation is already stored in the accuracyTable. Please remove that line to continue.")
 
 # import data
 primary_folder = '../../dataset/'
 
-folder_path = f"{primary_folder}results_{seg_x}_{seg_y}_{seg_z}"
+folder_path = f"../../results/xgboost/{seg_x}_{seg_y}_{seg_z}"
 if not os.path.exists(folder_path):
     os.makedirs(folder_path)
-        
-file_path = f'{primary_folder}results_{seg_x}_{seg_y}_{seg_z}/final_combined.tsv'
+
+file_path = ""
+if time_type == "d":
+    file_path = f'{primary_folder}results_{seg_x}_{seg_y}_{seg_z}/final_combined_digi.tsv'
+else:
+    file_path = f'{primary_folder}results_{seg_x}_{seg_y}_{seg_z}/final_combined_smear.tsv'
+    
 data = pd.read_csv(file_path, sep="\t")
 
+if time_type == "d":
+    data = data.drop(columns=["time0"])
+    
 # Split features (X) and target (y)
 X = data.iloc[:, :-1]
 y = data.iloc[:, -1]
@@ -555,3 +563,5 @@ def append_to_file(file_path, row):
 
 
 append_to_file(target_file, f"{segmentation}\t{acc_standard}\t{lower_bound}\t{upper_bound}\t{intersection_thr}\t{intersection_value}")
+
+print(f"{segmentation}\t{acc_standard}\t{lower_bound}\t{upper_bound}\t{intersection_thr}\t{intersection_value}")

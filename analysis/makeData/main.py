@@ -6,6 +6,7 @@ parser = argparse.ArgumentParser(description="Run commands to generate datasets"
 parser.add_argument('x', type=int, help="Value for x")
 parser.add_argument('y', type=int, help="Value for y")
 parser.add_argument('z', type=int, help="Value for z")
+parser.add_argument('time_type', type=str, help="Value for time_type")
 
 # Parse the arguments
 args = parser.parse_args()
@@ -14,11 +15,12 @@ args = parser.parse_args()
 x = args.x
 y = args.y
 z = args.z
+time_type = args.time_type
 
 # Build the commands to execute
-command1 = f"python make_dataset_particle.py {x} {y} {z} proton"
-command2 = f"python make_dataset_particle.py {x} {y} {z} pion"
-command3 = f"python make_fullDataset.py {x} {y} {z}"
+command1 = f"python make_dataset_particle.py {x} {y} {z} {time_type} proton"
+command2 = f"python make_dataset_particle.py {x} {y} {z} {time_type} pion"
+command3 = f"python make_fullDataset.py {x} {y} {z} {time_type}"
 
 # Function to run commands
 def run_command(command):

@@ -9,7 +9,7 @@ column = input("Enter the name of the column for the histogram: ")
 output_file = ""
 
 # Load the TSV file
-file_path = '../../dataset/results_100_100_100/final_combined.tsv'
+file_path = '../../dataset/results_100_100_100/final_combined_smear.tsv'
 output_file = f'../../results/features/plots/histogram_{column}.png'
 
 df = pd.read_csv(file_path, sep='\t')

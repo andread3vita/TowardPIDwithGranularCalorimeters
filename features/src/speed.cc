@@ -267,8 +267,8 @@ std::vector<double> speedAnalysis(  std::string particleName,
         // Store the (x, y, z) coordinates of the vertex and find the traveled distance
         std::vector<int> vertex_pos = {x_vertex, y_vertex, z_vertex};
         std::vector<int> central_cell = {size_cell[0]/2 , size_cell[1]/2, 0};
-        // double traveled_distance = sqrt(pow(vertex_pos[0]*1.-central_cell[0]*1.,2)+pow(vertex_pos[1]*1.-central_cell[1]*1.,2)+pow(z_vertex*1.+1.,2));
-        double traveled_distance = z_vertex + 1.;
+        double traveled_distance = sqrt(pow(vertex_pos[0]*1.-central_cell[0]*1.,2)+pow(vertex_pos[1]*1.-central_cell[1]*1.,2)+pow(z_vertex*1.+1.,2));
+        // double traveled_distance = z_vertex + 1.;
         
         // Subtract min_time_0 from VertexTime to normalize the vertex time relative to the minimum time.
         double travel_time = (VertexTime - deltaT_TL[1] > 0) ? VertexTime - deltaT_TL[1] : 0.1;

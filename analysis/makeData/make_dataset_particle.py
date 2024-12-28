@@ -6,19 +6,32 @@ primary_folder = '../../dataset/'
 seg_x = sys.argv[1]
 seg_y = sys.argv[2]
 seg_z = sys.argv[3]
-particle = sys.argv[4]
+time_type = sys.argv[4]
+particle = sys.argv[5]
 
 segmentation = f'results_{seg_x}_{seg_y}_{seg_z}/'
 
-subdirectories = [
-    'firstVertex/Smearing',
-    'generalFeatures/Smearing',
-    'missingEnergy',
-    'spatialObservables',
-    'speed/Smearing',
-    'topPeaks'
-]
+subdirectories = []
 
+if time_type == "d":
+    subdirectories = [
+        'firstVertex/Digitalization',
+        'generalFeatures/Digitalization',
+        'missingEnergy',
+        'spatialObservables',
+        'speed/Digitalization',
+        'topPeaks'
+    ]
+else:
+    subdirectories = [
+        'firstVertex/Smearing',
+        'generalFeatures/Smearing',
+        'missingEnergy',
+        'spatialObservables',
+        'speed/Smearing',
+        'topPeaks'
+    ]
+    
 # Construct the paths to the subdirectories
 paths = [f"{primary_folder}{segmentation}{subdir}" for subdir in subdirectories]
 
@@ -53,5 +66,8 @@ for subdir in paths:
 combined_dataset = combined_dataset.loc[:, ~combined_dataset.columns.str.contains('^Unnamed:', na=False)]
 
 # Save the final combined dataset
-combined_dataset.to_csv(f"{primary_folder}{segmentation}final_{particle}.tsv", sep='\t', index=False)
+if time_type == "d":
+    combined_dataset.to_csv(f"{primary_folder}{segmentation}final_{particle}_digi.tsv", sep='\t', index=False)
+else: 
+    combined_dataset.to_csv(f"{primary_folder}{segmentation}final_{particle}_smear.tsv", sep='\t', index=False)
 print(f"Combined file created: final_{particle}.tsv")
