@@ -60,7 +60,7 @@ int createDirectory(const std::string &path)
 }
 
 // Function to compute the asymmetry using rescaled coordinates for both x and y axes
-std::vector<double> missingEnergy(TString filePath, int eventNum, std::vector<int> size_cell)
+std::vector<double> missingEnergy_asymmetry(TString filePath, int eventNum, std::vector<int> size_cell)
 {
     TFile *inputFile = TFile::Open(filePath);
     TTree *Tree = dynamic_cast<TTree *>(inputFile->Get("outputTree"));
@@ -75,6 +75,8 @@ std::vector<double> missingEnergy(TString filePath, int eventNum, std::vector<in
 
     double asy_x = 0.0;
     double asy_y = 0.0;
+
+    double totEnergy = 0.;
 
     // Loop through each interaction in the event
     for (size_t j = 0; j < Tentries; j++)
@@ -95,21 +97,25 @@ std::vector<double> missingEnergy(TString filePath, int eventNum, std::vector<in
             // Compute the asymmetry as energy-weighted displacements
             asy_x += E * rescaled_x;
             asy_y += E * rescaled_y;
+
+            totEnergy += E;
         }
+
     }
 
     // Compute the overall asymmetry based on the x and y components
-    double Asymmetry = sqrt(pow(asy_x, 2) + pow(asy_y, 2));
-
+    double E_LR = sqrt(pow(asy_x, 2) + pow(asy_y, 2));
+    double Asymmetry = sqrt(pow(asy_x/totEnergy, 2) + pow(asy_y/totEnergy, 2));
+   
     // Close the file and clean up
     inputFile->Close();
     delete inputFile;
 
-    return {std::abs(asy_x), std::abs(asy_y), Asymmetry}; // Return the x, y, and total asymmetry
+    return {E_LR, Asymmetry};
 }
 
 // Function to compute asymmetry based on simple positive/negative x and y energy deposits
-std::vector<double> missingEnergyPlain(TString filePath, int eventNum, std::vector<int> size_cell)
+std::vector<double> missingEnergy_asymmetry_plain(TString filePath, int eventNum, std::vector<int> size_cell)
 {
     TFile *inputFile = TFile::Open(filePath);
     TTree *Tree = dynamic_cast<TTree *>(inputFile->Get("outputTree"));
@@ -124,6 +130,8 @@ std::vector<double> missingEnergyPlain(TString filePath, int eventNum, std::vect
 
     double asy_x = 0.0;
     double asy_y = 0.0;
+
+    double totEnergy = 0.;
 
     // Loop through each interaction in the event
     for (size_t j = 0; j < Tentries; j++)
@@ -159,17 +167,20 @@ std::vector<double> missingEnergyPlain(TString filePath, int eventNum, std::vect
             {
                 asy_y -= E; // Negative y contribution
             }
+
+            totEnergy += E;
         }
     }
 
     // Compute the overall asymmetry based on the x and y components
-    double Asymmetry = sqrt(pow(asy_x, 2) + pow(asy_y, 2));
-
+    double E_LR = sqrt(pow(asy_x, 2) + pow(asy_y, 2));
+    double Asymmetry = sqrt(pow(asy_x/totEnergy, 2) + pow(asy_y/totEnergy, 2));
+    
     // Close the file and clean up
     inputFile->Close();
     delete inputFile;
 
-    return {std::abs(asy_x), std::abs(asy_y), Asymmetry}; // Return the x, y, and total asymmetry
+    return {E_LR, Asymmetry};
 }
 
 
@@ -181,12 +192,10 @@ void fillTable(std::string particleName,std::vector<int> size_cell = {100,100,10
 
     oFile << "FileName\t";
     oFile << "EventNum\t";
-    oFile << "AsymmetryX\t";
-    oFile << "AsymmetryY\t";
-    oFile << "Asymmetry\t";
-    oFile << "AsymmetryX_plain\t";
-    oFile << "AsymmetryY_plain\t";
-    oFile << "Asymmetry_plain";
+    oFile << "E_LR_geom\t";
+    oFile << "Asymmetry_w\t";
+    oFile << "E_LR\t";
+    oFile << "Asymmetry";
 
     oFile << std::endl;
 
@@ -217,10 +226,10 @@ void fillTable(std::string particleName,std::vector<int> size_cell = {100,100,10
 
                     std::cout << "Processing: " << file->GetName() <<"\tEvent: " << i << "\t\ttime[min]: " << (duration.count()/1000)/60 << "\t\tProgress: " << totEv/50e3*100 << "%" << std::flush;
                     
-                    std::vector<double> info = missingEnergy(fileName,i,size_cell);
-                    std::vector<double> info_plain = missingEnergyPlain(fileName,i,size_cell);
+                    std::vector<double> info = missingEnergy_asymmetry(fileName,i,size_cell);
+                    std::vector<double> info_plain = missingEnergy_asymmetry_plain(fileName,i,size_cell);
 
-                    oFile << file->GetName() << "\t" << i << "\t" << info[0] << "\t" << info[1] <<  "\t" << info[2] <<  "\t" << info_plain[0] << "\t" << info_plain[1] << "\t" << info_plain[2] << std::endl;
+                    oFile << file->GetName() << "\t" << i << "\t" << info[0] << "\t" << info[1] <<  "\t" <<  "\t" << info_plain[0] << "\t" << info_plain[1] << std::endl;
 
                     std::cout << CURSOR_TO_START << CLEAR_LINE;
                                 
