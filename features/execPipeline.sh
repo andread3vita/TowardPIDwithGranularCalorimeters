@@ -6,28 +6,35 @@ mkdir -p log
 # Directory for .args files
 args_dir="args"
 
-for file in src/*.cc; do
-    # Ignora il file utils.cc
-    if [[ "$file" == "src/utils.cc" ]]; then
-        continue
-    elif [[ "$file" == "src/topPeaks_NOTSTABLE.cc" ]]; then
-        continue
-    elif [[ "$file" == "src/fileManager.cc" ]]; then
-        continue 
-    fi
+echo "Do you want to compile? (y/N):"
+read compile_
 
-    # Extract the file name without extension
-    filename=$(basename "$file" .cc)
+if [ "$compile_" == "y" ]; then
+    echo "Starting compilation..."
+    
+    for file in src/*.cc; do
+        # Ignora il file utils.cc
+        if [[ "$file" == "src/utils.cc" ]]; then
+            continue
+        elif [[ "$file" == "src/topPeaks_NOTSTABLE.cc" ]]; then
+            continue
+        elif [[ "$file" == "src/fileManager.cc" ]]; then
+            continue 
+        fi
 
-    # Compile the file into an executable
-    g++ -std=c++11 -Ofast -g "$file" ./src/utils.cc `root-config --cflags` -o "$filename" \
-    -L$(root-config --libdir) -Wl,-rpath,$(root-config --libdir) \
-    -lCore -lRIO -lNet -lHist -lGraf -lGraf3d -lGpad -lTree -lRint \
-    -lPostscript -lMatrix -lPhysics -lMathCore -lThread -lMultiProc \
-    -lROOTVecOps -pthread -lm -ldl -lSpectrum
-    echo "Compiled $file -> $filename"
-done
+        # Extract the file name without extension
+        filename=$(basename "$file" .cc)
 
+        # Compile the file into an executable
+        g++ -std=c++11 -Ofast -g "$file" ./src/utils.cc `root-config --cflags` -o "$filename" \
+        -L$(root-config --libdir) -Wl,-rpath,$(root-config --libdir) \
+        -lCore -lRIO -lNet -lHist -lGraf -lGraf3d -lGpad -lTree -lRint \
+        -lPostscript -lMatrix -lPhysics -lMathCore -lThread -lMultiProc \
+        -lROOTVecOps -pthread -lm -ldl -lSpectrum
+        echo "Compiled $file -> $filename"
+
+    done
+fi
 
 # Define executables
 declare -a executables=(
