@@ -12,6 +12,8 @@ for file in src/*.cc; do
         continue
     elif [[ "$file" == "src/topPeaks_NOTSTABLE.cc" ]]; then
         continue
+    elif [[ "$file" == "src/fileManager.cc" ]]; then
+        continue 
     fi
 
     # Extract the file name without extension
