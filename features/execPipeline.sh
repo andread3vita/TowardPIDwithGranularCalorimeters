@@ -6,11 +6,11 @@ mkdir -p log
 # Directory for .args files
 args_dir="args"
 
-#!/bin/bash
-
 for file in src/*.cc; do
     # Ignora il file utils.cc
     if [[ "$file" == "src/utils.cc" ]]; then
+        continue
+    elif [[ "$file" == "src/topPeaks_NOTSTABLE.cc" ]]; then
         continue
     fi
 

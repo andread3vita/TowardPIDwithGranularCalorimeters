@@ -397,7 +397,7 @@ int main(int argc, char* argv[]) {
     std::string smear = argv[8];
 
     // Check if the folder exists and create it if it doesn't
-    std::string folderPath = "./results/";
+    std::string folderPath = "../dataset/";
     
     // Try to create the folder
     if (createDirectory(folderPath) == 0) {
