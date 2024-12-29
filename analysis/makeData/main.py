@@ -20,7 +20,8 @@ time_type = args.time_type
 # Build the commands to execute
 command1 = f"python make_dataset_particle.py {x} {y} {z} {time_type} proton"
 command2 = f"python make_dataset_particle.py {x} {y} {z} {time_type} pion"
-command3 = f"python make_fullDataset.py {x} {y} {z} {time_type}"
+command3 = f"python make_dataset_particle.py {x} {y} {z} {time_type} kaon"
+command4 = f"python make_fullDataset.py {x} {y} {z} {time_type}"
 
 # Function to run commands
 def run_command(command):
@@ -37,6 +38,7 @@ def run_command(command):
 run_command(command1)
 run_command(command2)
 run_command(command3)
+run_command(command4)
 
 print("Command execution completed.")
 

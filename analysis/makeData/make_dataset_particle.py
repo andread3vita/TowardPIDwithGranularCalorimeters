@@ -42,7 +42,7 @@ combined_dataset = pd.DataFrame()
 for subdir in paths:
     file_path = f"{subdir}/{particle}.tsv"
     try:
-        df = pd.read_csv(file_path, sep='\t')
+        df = pd.read_csv(file_path, sep='\t',index_col=None)
 
         if df.shape[1] >= 2:
             # Extract specific columns (after the first two)

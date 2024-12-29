@@ -11,24 +11,29 @@ time_type = sys.argv[4]
 
 df_proton = pd.DataFrame()
 df_pion = pd.DataFrame()
+df_kaon = pd.DataFrame()
 
 if time_type == "d":
     df_proton = pd.read_csv(f'../../dataset/results_{seg_x}_{seg_y}_{seg_z}/final_proton_digi.tsv', sep='\t')
     df_pion = pd.read_csv(f'../../dataset/results_{seg_x}_{seg_y}_{seg_z}/final_pion_digi.tsv', sep='\t')
+    df_kaon = pd.read_csv(f'../../dataset/results_{seg_x}_{seg_y}_{seg_z}/final_kaon_digi.tsv', sep='\t')
 else:
     df_proton = pd.read_csv(f'../../dataset/results_{seg_x}_{seg_y}_{seg_z}/final_proton_smear.tsv', sep='\t')
     df_pion = pd.read_csv(f'../../dataset/results_{seg_x}_{seg_y}_{seg_z}/final_pion_smear.tsv', sep='\t')
+    df_kaon = pd.read_csv(f'../../dataset/results_{seg_x}_{seg_y}_{seg_z}/final_kaon_smear.tsv', sep='\t')
 
 # Remove the first two columns
 df_proton = df_proton.iloc[:, 2:]
 df_pion = df_pion.iloc[:, 2:]
+df_kaon = df_kaon.iloc[:, 2:]
 
 # Add the 'Class' column: 0 for final_proton, 1 for final_pion
 df_proton['Class'] = 0
 df_pion['Class'] = 1
+df_kaon['Class'] = 2
 
 # Combine the two dataframes
-final_result = pd.concat([df_proton, df_pion], ignore_index=True)
+final_result = pd.concat([df_proton, df_pion,df_kaon], ignore_index=True)
 
 # Save the result to a new file
 if time_type == "d":

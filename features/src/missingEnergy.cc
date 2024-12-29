@@ -229,7 +229,7 @@ void fillTable(std::string particleName,std::vector<int> size_cell = {100,100,10
                     std::vector<double> info = missingEnergy_asymmetry(fileName,i,size_cell);
                     std::vector<double> info_plain = missingEnergy_asymmetry_plain(fileName,i,size_cell);
 
-                    oFile << file->GetName() << "\t" << i << "\t" << info[0] << "\t" << info[1] <<  "\t" <<  "\t" << info_plain[0] << "\t" << info_plain[1] << std::endl;
+                    oFile << file->GetName() << "\t" << i << "\t" << info[0] << "\t" << info[1] <<  "\t" << info_plain[0] << "\t" << info_plain[1] << std::endl;
 
                     std::cout << CURSOR_TO_START << CLEAR_LINE;
                                 
