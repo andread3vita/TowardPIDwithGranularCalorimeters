@@ -41,7 +41,7 @@ The following executables are used for feature analysis:
 ### Compilation
 To compile an executable:
 ```bash
-g++ -Ofast -g src/<file>.cc utils.cc `root-config --cflags` -o <file> -L$(root-config --libdir) -Wl,-rpath,$(root-config --libdir) -lCore -lRIO -lNet -lHist -lGraf -lGraf3d -lGpad -lTree -lRint -lPostscript -lMatrix -lPhysics -lMathCore -lThread -lMultiProc -lROOTVecOps -pthread -lm -ldl -lSpectrum
+g++ -Ofast -g src/<file>.cc src/utils.cc `root-config --cflags` -o <file> -L$(root-config --libdir) -Wl,-rpath,$(root-config --libdir) -lCore -lRIO -lNet -lHist -lGraf -lGraf3d -lGpad -lTree -lRint -lPostscript -lMatrix -lPhysics -lMathCore -lThread -lMultiProc -lROOTVecOps -pthread -lm -ldl -lSpectrum
 ```
 Repeat this step for each of the executables listed above.
 
@@ -77,7 +77,9 @@ TowardPID
          |-----> include
          |-----> args
          |-----> log
-         |-----> results
+|---->dataset
+|---->analysis
+|---->results
 ```
 
 - **src**: Contains the source files for the executables and the arguments manager.

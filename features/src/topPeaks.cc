@@ -106,10 +106,14 @@ std::vector<double> findPeaks_withDeco(TString filePath, int eventNum, std::vect
         int cell_idx = (*Tcell_idx)[j];
         double E = (*Tedep)[j];
 
-        std::vector<int> int_pos = convertPos(cub_idx, cell_idx, size_cell);
+        if (E>0)
+        {
 
-        hist_cell_zy.Fill(int_pos[2], int_pos[1], E);
-        hist_cell_zx.Fill(int_pos[2], int_pos[0], E);
+            std::vector<int> int_pos = convertPos(cub_idx, cell_idx, size_cell);
+
+            hist_cell_zy.Fill(int_pos[2], int_pos[1], E);
+            hist_cell_zx.Fill(int_pos[2], int_pos[0], E);
+        }
     }
 
     // Proiezione sull'asse Z
@@ -387,7 +391,7 @@ void fillTable(std::string particleName,std::vector<int> size_cell = {100,100,10
 
     oFile << "numPeaks\t";
     oFile << "E1\t";
-    oFile << "R1\t";
+    oFile << "R1";
 
 
     oFile << std::endl;
@@ -461,7 +465,7 @@ int main(int argc, char* argv[]) {
     int rad = std::stoi(argv[5]);
 
     // Check if the folder exists and create it if it doesn't
-    std::string folderPath = "./results/";
+    std::string folderPath = "../dataset/";
     
     // Try to create the folder
     if (createDirectory(folderPath) == 0) {

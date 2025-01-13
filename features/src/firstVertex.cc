@@ -480,7 +480,7 @@ void fillTable( std::string particleName,
                 std::string folderPath="")
 {
 
-   std::string outFile = folderPath + "/" + particleName + std::to_string(std::round(threshold))+".tsv"; ///change it before executing
+    std::string outFile = folderPath + "/" + particleName + ".tsv";
     std::ofstream oFile(outFile, std::ios::out);
 
     oFile << "FileName\t";
@@ -584,7 +584,7 @@ int main(int argc, char* argv[]) {
 
 
     // Check if the folder exists and create it if it doesn't
-    std::string folderPath = "./results/";
+    std::string folderPath = "../dataset/";
     
     // Try to create the folder
     if (createDirectory(folderPath) == 0) {

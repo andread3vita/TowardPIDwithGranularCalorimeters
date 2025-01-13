@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import os
+import matplotlib.patches as mpatches
 
 
 z_size = 12.
@@ -19,35 +20,60 @@ summaryTable["segx"] = summaryTable["segx"].astype(float)
 summaryTable["segy"] = summaryTable["segy"].astype(float)
 summaryTable["segz"] = summaryTable["segz"].astype(float)
 
-filtered_segz = summaryTable[summaryTable["segz"] == 100]
+filtered_segx = (
+    summaryTable
+    .sort_values(by='accuracy', ascending=False) 
+    .groupby(['segx', 'segy'], as_index=False)
+    .first()
+)
+
+filtered_segz = (
+    summaryTable
+    .sort_values(by='accuracy', ascending=False)
+    .groupby(['segz'], as_index=False)
+    .first()
+)
+
+filtered_segx['Z_segmentation'] = filtered_segx.apply(
+    lambda row: f"XY_{int(row['segz'])}", axis=1
+)
+filtered_segz['XY_segmentation'] = filtered_segz.apply(
+    lambda row: f"Z_{int(row['segx'])}_{int(row['segy'])}", axis=1
+)
+
+color_map = {
+    'XY_10': 'blue','XY_25': 'green', 'XY_50': 'purple', 'XY_100': 'orange',
+    'Z_10_10': 'blue', 'Z_25_25': 'green', 'Z_50_50': 'purple','Z_100_100': 'orange'
+}
+
+filtered_segx['color'] = filtered_segx['Z_segmentation'].map(color_map)
+filtered_segz['color'] = filtered_segz['XY_segmentation'].map(color_map)
 
 area_XY = []
 accuracy_XY = []
 error_XY_lower = []
 error_XY_upper = []
-if (len(filtered_segz)):
-    area_XY = ((100/filtered_segz["segx"]) * (100/filtered_segz["segy"])*x_size*y_size).tolist()
-    accuracy_XY = filtered_segz["accuracy"].tolist()
-    error_XY_min = filtered_segz["minVal"].tolist()
-    error_XY_max = filtered_segz["maxVal"].tolist()
+if (len(filtered_segx)):
+    area_XY = ((100/filtered_segx["segx"]) * (100/filtered_segx["segy"])*x_size*y_size).tolist()
+    accuracy_XY = filtered_segx["accuracy"].tolist()
+    error_XY_min = filtered_segx["minVal"].tolist()
+    error_XY_max = filtered_segx["maxVal"].tolist()
     
     error_XY_lower = [accuracy - error_min for accuracy, error_min in zip(accuracy_XY, error_XY_min)]
     error_XY_upper = [error_max - accuracy for accuracy, error_max in zip(accuracy_XY, error_XY_max)]
     
     area_XY, accuracy_XY, error_XY_lower, error_XY_upper = zip(*sorted(zip(area_XY, accuracy_XY, error_XY_lower, error_XY_upper), key=lambda x: x[0]))
 
-filtered_segx = summaryTable[summaryTable["segx"] == 100]
-
 delta_Z = []
 accuracy_Z = []
 error_Z_lower = []
 error_Z_upper = []
-if (len(filtered_segx)):
+if (len(filtered_segz)):
     
-    delta_Z = ((100/filtered_segx["segz"])*z_size).tolist()
-    accuracy_Z = filtered_segx["accuracy"].tolist()
-    error_Z_min = filtered_segx["minVal"].tolist()
-    error_Z_max = filtered_segx["maxVal"].tolist()
+    delta_Z = ((100/filtered_segz["segz"])*z_size).tolist()
+    accuracy_Z = filtered_segz["accuracy"].tolist()
+    error_Z_min = filtered_segz["minVal"].tolist()
+    error_Z_max = filtered_segz["maxVal"].tolist()
 
     error_Z_lower = [accuracy - error_min for accuracy, error_min in zip(accuracy_Z, error_Z_min)]
     error_Z_upper = [error_max - accuracy for accuracy, error_max in zip(accuracy_Z, error_Z_max)]
@@ -79,11 +105,12 @@ fig, axes = plt.subplots(2, 2, figsize=(12, 12), sharey=False)
 sigma_color = 'red'
 
 # Plot 1: Accuracy vs Area_XY
-axes[0, 0].errorbar(
-    area_XY, accuracy_XY, 
-    yerr=(error_XY_lower, error_XY_upper), 
-    fmt='s--', capsize=5, label='Accuracy'
-)
+for x, y, yerr_lower, yerr_upper, color in zip(area_XY, accuracy_XY, error_XY_lower, error_XY_upper, filtered_segx['color']):
+    axes[0, 0].errorbar(
+        x, y,
+        yerr=[[yerr_lower], [yerr_upper]],
+        fmt='o--', color=color, capsize=5, alpha=0.8
+    )
 axes[0, 0].axhspan(
     base_min, base_max, color=sigma_color, alpha=0.3, label=r'Baseline $\sigma=1$'
 )
@@ -91,21 +118,32 @@ axes[0, 0].axhline(y=base, color='red', linestyle='--', label='Baseline')  # Add
 axes[0, 0].set_xlabel(r'$\Delta_{XY} \,\, [\mathrm{mm}^2]$', fontsize=12)
 axes[0, 0].set_ylabel('Accuracy', fontsize=12)
 axes[0, 0].grid(True, linestyle='--', alpha=0.7)
-axes[0, 0].legend()
 
 # Plot 2: Accuracy vs Delta_Z
-axes[0, 1].errorbar(
-    delta_Z, accuracy_Z, 
-    yerr=(error_Z_lower, error_Z_upper), 
-    fmt='s--', capsize=5, label='Accuracy', color='orange'
-)
+for x, y, yerr_lower, yerr_upper, color in zip(delta_Z, accuracy_Z, error_Z_lower, error_Z_upper, filtered_segz['color']):
+    axes[0, 1].errorbar(
+        x, y,
+        yerr=[[yerr_lower], [yerr_upper]],
+        fmt='o--', color=color, capsize=5, alpha=0.8
+    )
 axes[0, 1].axhspan(
     base_min, base_max, color=sigma_color, alpha=0.3, label=r'Baseline $\sigma=1$'
 )
 axes[0, 1].axhline(y=base, color='red', linestyle='--', label='Baseline')  # Add baseline
 axes[0, 1].set_xlabel(r'$\Delta_{Z} \,\, [\mathrm{mm}]$', fontsize=12)
 axes[0, 1].grid(True, linestyle='--', alpha=0.7)
-axes[0, 1].legend()
+
+handles_xy = [
+    mpatches.Patch(color=color, label=label)
+    for label, color in color_map.items() if "Z" in label
+]
+axes[0, 0].legend(handles=handles_xy, title='Z segmentation', loc='best')
+
+handles_z = [
+    mpatches.Patch(color=color, label=label)
+    for label, color in color_map.items() if "XY" in label
+]
+axes[0, 1].legend(handles=handles_z, title='XY Segmentation', loc='best')
 
 # Plot 3: Accuracy vs Volume_XYZ
 axes[1, 0].errorbar(

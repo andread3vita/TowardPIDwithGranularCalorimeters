@@ -94,14 +94,18 @@ std::vector<double> SpatialObservables(TString filePath, int eventNum, std::vect
         int cell_idx = (*Tcell_idx)[j];
         double E = (*Tedep)[j];
 
-        // Convert indices to spatial positions
-        std::vector<int> int_pos = convertPos(cub_idx, cell_idx, size_cell);
+        if (E>0)
+        {
 
-        // Store positions and energy
-        x_pos.push_back(int_pos[0]);
-        y_pos.push_back(int_pos[1]);
-        z_pos.push_back(int_pos[2]);
-        ENERGY.push_back(E);
+            // Convert indices to spatial positions
+            std::vector<int> int_pos = convertPos(cub_idx, cell_idx, size_cell);
+
+            // Store positions and energy
+            x_pos.push_back(int_pos[0]);
+            y_pos.push_back(int_pos[1]);
+            z_pos.push_back(int_pos[2]);
+            ENERGY.push_back(E);
+        }
     }
 
     // Calculate mean positions weighted by energy
@@ -210,7 +214,7 @@ int main(int argc, char* argv[]) {
     int size_z = std::stoi(argv[4]);
 
     // Check if the folder exists and create it if it doesn't
-    std::string folderPath = "./results/";
+    std::string folderPath = "../dataset/";
     
     // Try to create the folder
     if (createDirectory(folderPath) == 0) {
