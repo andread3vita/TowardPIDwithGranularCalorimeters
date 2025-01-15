@@ -8,11 +8,14 @@ z_size = 12.
 x_size = 3.
 y_size = 3.
 
-target_file = "../../results/xgboost/accuracyTable.tsv"
-summaryTable = pd.read_csv(target_file, sep="\t")
+target_file = "/home/alma1/GNN/Deepset/28oct_DNN/TowardPIDwithGranularCalorimeters/results/DNN/accuracyTable.csv"
+summaryTable = pd.read_csv(target_file, sep=",")
+
+summaryTable['Name'] = summaryTable['Name'].str.replace('^pp_', '', regex=True)
+summaryTable.rename(columns={'Name': 'segmentation'}, inplace=True)
 summaryTable = summaryTable[summaryTable["accuracy"] != -1]
 
-print(summaryTable)
+
 
 summaryTable[["segx", "segy", "segz"]] = summaryTable["segmentation"].str.extract(r"(\d+)_(\d+)_(\d+)")
 summaryTable["segx"] = summaryTable["segx"].astype(float)
@@ -33,6 +36,8 @@ if (len(filtered_segz)):
     
     error_XY_lower = [accuracy - error_min for accuracy, error_min in zip(accuracy_XY, error_XY_min)]
     error_XY_upper = [error_max - accuracy for accuracy, error_max in zip(accuracy_XY, error_XY_max)]
+    print(error_XY_lower)
+    print(error_XY_upper)
     
     area_XY, accuracy_XY, error_XY_lower, error_XY_upper = zip(*sorted(zip(area_XY, accuracy_XY, error_XY_lower, error_XY_upper), key=lambda x: x[0]))
 
@@ -51,6 +56,7 @@ if (len(filtered_segx)):
 
     error_Z_lower = [accuracy - error_min for accuracy, error_min in zip(accuracy_Z, error_Z_min)]
     error_Z_upper = [error_max - accuracy for accuracy, error_max in zip(accuracy_Z, error_Z_max)]
+    
 
     delta_Z, accuracy_Z, error_Z_lower, error_Z_upper = zip(*sorted(zip(delta_Z, accuracy_Z, error_Z_lower, error_Z_upper), key=lambda x: x[0]))
 
@@ -62,15 +68,20 @@ error_XYZ_max = summaryTable["maxVal"].tolist()
 
 error_XYZ_lower = [accuracy - error_min for accuracy, error_min in zip(accuracy_XYZ, error_XYZ_min)]
 error_XYZ_upper = [error_max - accuracy for accuracy, error_max in zip(accuracy_XYZ, error_XYZ_max)]
+print(error_XYZ_lower)
+print(error_XYZ_upper)
 
 volume_XYZ, accuracy_XYZ, error_XYZ_lower, error_XYZ_upper = zip(*sorted(zip(volume_XYZ, accuracy_XYZ, error_XYZ_lower, error_XYZ_upper), key=lambda x: x[0]))
 
-baseline_file = "../../results/xgboost/baseline.tsv"
+baseline_file = "/home/alma1/GNN/Deepset/28oct_DNN/TowardPIDwithGranularCalorimeters/results/DNN/baseline.tsv"
 baselineTable = pd.read_csv(baseline_file, sep="\t")
-
+baselineTable['accuracy']=baselineTable['accuracy']*100.
+baselineTable['minVal']=baselineTable['minVal']*100.
+baselineTable['maxVal']=baselineTable['maxVal']*100.
 base = baselineTable['accuracy'].iloc[0].astype(float)
 base_min = baselineTable['minVal'].iloc[0].astype(float)
 base_max = baselineTable['maxVal'].iloc[0].astype(float)
+
 
 # Create the figure with 2 rows and 2 columns
 fig, axes = plt.subplots(2, 2, figsize=(12, 12), sharey=False)
@@ -129,12 +140,15 @@ seg_xy_values = np.array([100,50,25,10])
 seg_z_values = np.array([100,50,25,10])
 
 accuracy_matrix = np.zeros((len(seg_z_values), len(seg_xy_values)))
-
+print(f"segz: {seg_z_values}")
+print(f"segx: {seg_xy_values}")
+print(f"summaryTable: {summaryTable}")
+summaryTable['accuracy'] = summaryTable['accuracy']*.01
 for i, seg_x in enumerate(seg_xy_values):
     for j, seg_z in enumerate(seg_z_values):
         # Find the average accuracy for each combination of seg_x and seg_z
         subset = summaryTable[(summaryTable["segx"] == seg_x) & (summaryTable["segz"] == seg_z)]
-        
+        print(f"subset: {subset}")
         if (len(subset)):
             accuracy_matrix[j, i] = subset["accuracy"].mean()
         else:
@@ -145,16 +159,16 @@ labels_y = 100/seg_z_values*z_size
 
 heatmap_kwargs = {
     'annot': True,
-    'fmt': ".3f",
+    'fmt': ".2f",
     'cmap': 'Blues',
-    'vmin': 0.61,
+    'vmin': 0.60,
     'vmax': 0.63, 
     'annot_kws': {"size": 16},
     'cbar': True 
 }
 
 import seaborn as sns
-
+print(f"accuracy_matrix: {accuracy_matrix}")      
 sns.heatmap(
     accuracy_matrix, 
     xticklabels=labels_x, 
@@ -168,6 +182,6 @@ axes[1, 1].set_ylabel(r'$\Delta_{Z} \,\, [\mathrm{mm}]$', fontsize=12)
 axes[1, 1].set_title('Accuracy Matrix', fontsize=12)
 
 plt.tight_layout()
-plt.savefig(f'../../results/xgboost/moneyplot.png')
+plt.savefig(f'/home/alma1/GNN/Deepset/28oct_DNN/TowardPIDwithGranularCalorimeters/results/DNN/moneyplot.png')
 
-plt.show()
+# plt.show()
