@@ -131,16 +131,47 @@ X_val, X_test, y_val, y_test = train_test_split(
 # print(f"Best hyperparameters found: {best_params}")
 
 
-best_params = {
-    'colsample_bytree': 0.6,                        
-    'learning_rate': 0.001,         
-    'max_depth': 10,               
-    'min_child_weight': 1,         
-    'n_estimators': 4500,           
-    'reg_alpha': 0.1,              
-    'reg_lambda': 2,             
-    'subsample': 1.0               
-}
+best_params = {}
+if analysis_type == "ppi":
+    best_params = {
+        'colsample_bytree': 0.6,                        
+        'learning_rate': 0.001,         
+        'max_depth': 10,               
+        'min_child_weight': 1,         
+        'n_estimators': 4500,           
+        'reg_alpha': 0.1,              
+        'reg_lambda': 2,             
+        'subsample': 1.0               
+    }
+    
+elif analysis_type == "pik":
+    best_params = {
+        'colsample_bytree': 0.6,                        
+        'learning_rate': 0.001,         
+        'max_depth': 7,               
+        'min_child_weight': 1,         
+        'n_estimators': 3500,           
+        'reg_alpha': 0.1,              
+        'reg_lambda': 2,             
+        'subsample': 1.0               
+    }
+    
+elif analysis_type == "pk":
+    
+    best_params = {
+        'colsample_bytree': 0.6,                        
+        'learning_rate': 0.001,         
+        'max_depth': 10,               
+        'min_child_weight': 1,         
+        'n_estimators': 4000,           
+        'reg_alpha': 0.1,              
+        'reg_lambda': 2,             
+        'subsample': 1.0               
+    }
+    
+elif analysis_type == "ppik":
+    print("Not yet implemented")
+    sys.exit(1)
 
 ############################
 ######### TRAINING #########

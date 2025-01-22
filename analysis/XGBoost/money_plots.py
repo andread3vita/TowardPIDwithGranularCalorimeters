@@ -74,9 +74,9 @@ segXY_maxAcc = (
 )
 
 volume_XYZ = ((100/summaryTable["segx"]) * (100/summaryTable["segy"])*(100/summaryTable["segz"])*x_size*y_size*z_size).tolist()
-accuracy_XYZ = summaryTable["accuracy"].tolist()
-error_XYZ_min = summaryTable["minVal"].tolist()
-error_XYZ_max = summaryTable["maxVal"].tolist()
+accuracy_XYZ = (summaryTable["accuracy"]*100).tolist()
+error_XYZ_min = (summaryTable["minVal"]*100).tolist()
+error_XYZ_max = (summaryTable["maxVal"]*100).tolist()
 
 error_XYZ_lower = [accuracy - error_min for accuracy, error_min in zip(accuracy_XYZ, error_XYZ_min)]
 error_XYZ_upper = [error_max - accuracy for accuracy, error_max in zip(accuracy_XYZ, error_XYZ_max)]
@@ -87,26 +87,27 @@ volume_XYZ, accuracy_XYZ, error_XYZ_lower, error_XYZ_upper = zip(*sorted(zip(vol
 baseline_file = f"{folder_path}/baseline.tsv"
 baselineTable = pd.read_csv(baseline_file, sep="\t")
 
-base = baselineTable['accuracy'].iloc[0].astype(float)
-base_min = baselineTable['minVal'].iloc[0].astype(float)
-base_max = baselineTable['maxVal'].iloc[0].astype(float)
+base = baselineTable['accuracy'].iloc[0].astype(float)*100
+base_min = baselineTable['minVal'].iloc[0].astype(float)*100
+base_max = baselineTable['maxVal'].iloc[0].astype(float)*100
 
 # Define the color for the 1-sigma region
 sigma_color = 'red'
 
 # Create the figure with 2 rows and 2 columns
-fig, axes = plt.subplots(2, 2, figsize=(12, 12), sharey=False)
+fig, axes = plt.subplots(2, 2, figsize=(16, 16), sharey=False)
 
 # Plot 1: Accuracy vs Area_XY
 for segz in segZ_accuracy.keys():
     # Get the accuracy, minVal, and maxVal for the current segx
     accuracy = segZ_accuracy[segz]
+    accuracy = [acc*100 for acc in accuracy]
     min_val = segZ_minAcc[segz]
     max_val = segZ_maxAcc[segz]
     
     # Calculate the error (difference between accuracy and min/max)
-    error = [accuracy - min_v for accuracy, min_v in zip(accuracy, min_val)]
-    error_upper = [max_v - accuracy for max_v, accuracy in zip(max_val, accuracy)]
+    error = [accuracy - min_v*100 for accuracy, min_v in zip(accuracy, min_val)]
+    error_upper = [max_v*100 - accuracy for max_v, accuracy in zip(max_val, accuracy)]
 
     areaXY = [100 / segx * 100 / segx * x_size * y_size for segx in [10.0, 25.0, 50.0, 100.0]]
     
@@ -114,10 +115,10 @@ for segz in segZ_accuracy.keys():
     axes[0, 0].errorbar(
         areaXY,                     
         accuracy, 
-        yerr=[error, error_upper],  # Lower and upper error
-        label=f'segZ = {segz}',     # Legend for each segx
-        fmt='--o',                  # Line style and marker
-        capsize=5                   # Add caps to the error bars
+        yerr=[error, error_upper],          # Lower and upper error
+        label=f'segZ = {segz}',             # Legend for each segx
+        fmt='--o',                          # Line style and marker
+        capsize=5                           # Add caps to the error bars
     )
     
 axes[0, 0].axhspan(
@@ -126,15 +127,15 @@ axes[0, 0].axhspan(
 
 
 if analysis_type == "ppi":
-    axes[0, 0].set_title(r'Accuracy $p/\pi$ as a Function of Cell Cross-Section Area') 
+    axes[0, 0].set_title(r'Accuracy $p/\pi$ as a Function of Cell Cross-Section Area', fontsize=16)
 elif analysis_type == "pik":
-    axes[0, 0].set_title(r'Accuracy $\pi/\K$ as a Function of Cell Cross-Section Area') 
+    axes[0, 0].set_title(r'Accuracy $\pi/K$ as a Function of Cell Cross-Section Area', fontsize=16)
 elif analysis_type == "pk":
-    axes[0, 0].set_title(r'Accuracy $p/\K$ as a Function of Cell Cross-Section Area') 
+    axes[0, 0].set_title(r'Accuracy $p/K$ as a Function of Cell Cross-Section Area', fontsize=16)
 
 axes[0, 0].axhline(y=base, color='red', linestyle='--', label='Baseline')  # Add baseline
-axes[0, 0].set_xlabel(r'$\Delta_{XY} \,\, [\mathrm{mm}^2]$', fontsize=12)
-axes[0, 0].set_ylabel('Accuracy', fontsize=12)
+axes[0, 0].set_xlabel(r'$\Delta_{XY} \,\, [\mathrm{mm}^2]$', fontsize=16)
+axes[0, 0].set_ylabel('Accuracy [%]', fontsize=16)
 axes[0, 0].legend()  # Show the legend
 axes[0, 0].grid(True, linestyle='--', alpha=0.7)
 axes[0, 0].set_xscale('log')
@@ -143,12 +144,13 @@ axes[0, 0].set_xscale('log')
 for segx in segXY_accuracy.keys():
     # Get the accuracy, minVal, and maxVal for the current segx
     accuracy = segXY_accuracy[segx]
+    accuracy = [acc*100 for acc in accuracy]
     min_val = segXY_minAcc[segx]
     max_val = segXY_maxAcc[segx]
     
     # Calculate the error (difference between accuracy and min/max)
-    error = [accuracy - min_v for accuracy, min_v in zip(accuracy, min_val)]
-    error_upper = [max_v - accuracy for max_v, accuracy in zip(max_val, accuracy)]
+    error = [accuracy - min_v*100 for accuracy, min_v in zip(accuracy, min_val)]
+    error_upper = [max_v*100 - accuracy for max_v, accuracy in zip(max_val, accuracy)]
 
     # Calculate deltaZ (deltaZ = 100 / segz * z_size)
     deltaZ = [100 / segz * z_size for segz in [10.0, 25.0, 50.0, 100.0]] 
@@ -157,10 +159,10 @@ for segx in segXY_accuracy.keys():
     axes[0, 1].errorbar(
         deltaZ,  # Use deltaZ for the x-axis
         accuracy, 
-        yerr=[error, error_upper],  # Lower and upper error
-        label=f'segXY = {segx}',     # Legend for each segx
-        fmt='--o',                  # Line style and marker
-        capsize=5                   # Add caps to the error bars
+        yerr=[error, error_upper],          # Lower and upper error
+        label=f'segXY = {segx}',            # Legend for each segx
+        fmt='--o',                          # Line style and marker
+        capsize=5                           # Add caps to the error bars
     )
 
 axes[0, 1].axhspan(
@@ -168,14 +170,15 @@ axes[0, 1].axhspan(
 )
 
 if analysis_type == "ppi":
-    axes[0, 1].set_title(r'Accuracy $p/\pi$ as a Function of Longitudinal Segmentation') 
+    axes[0, 1].set_title(r'Accuracy $p/\pi$ as a Function of Longitudinal Segmentation', fontsize=16)
 elif analysis_type == "pik":
-    axes[0, 1].set_title(r'Accuracy $\pi/\K$ as a Function of Longitudinal Segmentation') 
+    axes[0, 1].set_title(r'Accuracy $\pi/K$ as a Function of Longitudinal Segmentation', fontsize=16)
 elif analysis_type == "pk":
-    axes[0, 1].set_title(r'Accuracy $p/\K$ as a Function of Longitudinal Segmentation') 
+    axes[0, 1].set_title(r'Accuracy $p/K$ as a Function of Longitudinal Segmentation', fontsize=16)
     
 axes[0, 1].axhline(y=base, color='red', linestyle='--', label='Baseline') 
-axes[0, 1].set_xlabel(r'$\Delta_{Z} \,\, [\mathrm{mm}]$', fontsize=12)
+axes[0, 1].set_xlabel(r'$\Delta_{Z} \,\, [\mathrm{mm}]$', fontsize=16)
+axes[0, 1].set_ylabel('Accuracy [%]', fontsize=16)
 axes[0, 1].grid(True, linestyle='--', alpha=0.7)
 axes[0, 1].legend()  # Show the legend
 axes[0, 1].set_xscale('log')
@@ -191,15 +194,15 @@ axes[1, 0].axhspan(
 )
 
 if analysis_type == "ppi":
-    axes[1, 0].set_title(r'Accuracy $p/\pi$ as a Function of Cell Volume') 
+    axes[1, 0].set_title(r'Accuracy $p/\pi$ as a Function of Cell Volume', fontsize=16)
 elif analysis_type == "pik":
-    axes[1, 0].set_title(r'Accuracy $\pi/\K$ as a Function of Cell Volume') 
+    axes[1, 0].set_title(r'Accuracy $\pi/K$ as a Function of Cell Volume', fontsize=16)
 elif analysis_type == "pk":
-    axes[1, 0].set_title(r'Accuracy $p/\K$ as a Function of Cell Volume') 
+    axes[1, 0].set_title(r'Accuracy $p/K$ as a Function of Cell Volume', fontsize=16)
     
 axes[1, 0].axhline(y=base, color='red', linestyle='--', label='Baseline') 
 axes[1, 0].set_xlabel(r'$\Delta_{XYZ} \,\, [\mathrm{mm}^3]$', fontsize=12)
-axes[1, 0].set_ylabel('Accuracy', fontsize=12)
+axes[1, 0].set_ylabel('Accuracy [%]', fontsize=16)
 axes[1, 0].grid(True, linestyle='--', alpha=0.7)
 axes[1, 0].legend()
 axes[1, 0].set_xscale('log')
@@ -218,7 +221,7 @@ for i, seg_x in enumerate(seg_xy_values):
         subset = summaryTable[(summaryTable["segx"] == seg_x) & (summaryTable["segz"] == seg_z)]
         
         if (len(subset)):
-            accuracy_matrix[j, i] = subset["accuracy"].mean()
+            accuracy_matrix[j, i] = (subset["accuracy"]*100).mean()
         else:
             accuracy_matrix[j, i] = 0.
 
@@ -229,8 +232,8 @@ heatmap_kwargs = {
     'annot': True,
     'fmt': ".3f",
     'cmap': 'Blues',
-    'vmin': 0.60,
-    'vmax': 0.63, 
+    'vmin': 56.0,
+    'vmax': 56.8, 
     'annot_kws': {"size": 16},
     'cbar': True 
 }
@@ -245,16 +248,16 @@ sns.heatmap(
     **heatmap_kwargs
 )
 
-axes[1, 1].set_xlabel(r'$\Delta_{XY} \,\, [\mathrm{mm}^2]$', fontsize=12)
-axes[1, 1].set_ylabel(r'$\Delta_{Z} \,\, [\mathrm{mm}]$', fontsize=12)
-axes[1, 1].set_title('Accuracy Matrix', fontsize=12)
+axes[1, 1].set_xlabel(r'$\Delta_{XY} \,\, [\mathrm{mm}^2]$', fontsize=16)
+axes[1, 1].set_ylabel(r'$\Delta_{Z} \,\, [\mathrm{mm}]$', fontsize=16)
+axes[1, 1].set_title('Accuracy Matrix', fontsize=16)
 
 if analysis_type == "ppi":
-    axes[1, 1].set_title(r'Accuracy $p/\pi$ as a Function of Segmentation') 
+    axes[1, 1].set_title(r'Accuracy $p/\pi$ as a Function of Segmentation', fontsize=16)
 elif analysis_type == "pik":
-    axes[1, 1].set_title(r'Accuracy $\pi/\K$ as a Function of Segmentation') 
+    axes[1, 1].set_title(r'Accuracy $\pi/K$ as a Function of Segmentation', fontsize=16)
 elif analysis_type == "pk":
-    axes[1, 1].set_title(r'Accuracy $p/\K$ as a Function of Segmentation') 
+    axes[1, 1].set_title(r'Accuracy $p/K$ as a Function of Segmentation', fontsize=16)
 
 plt.tight_layout()
 plt.savefig(f'{folder_path}/moneyplot.png')
